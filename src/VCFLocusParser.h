@@ -8,10 +8,10 @@
 #ifndef _VCF_LOCUS_PARSER_H_
 #define _VCF_LOCUS_PARSER_H_
 
+#include <stdbool.h>
 #include "../lib/zlib.h"
 #include "../lib/kstring.h"
 #include "../lib/kseq.h"
-#include "RegionSet.h"
 
 // We use kseq as a stream to read in GZ files.
 #define BUFFER_SIZE 4096
@@ -46,9 +46,6 @@ typedef struct {
     // An array of kstring_t to hold the names of each sample.
     kstring_t** sampleNames;
 
-    // Fields to help us omitt unwanted record.
-    //  If the user wishes, they can specify a set of regions to include/exclude.
-    RegionSet_t* set;
     // Flag to drop monomorphic sites.
     bool dropMonomorphicSites;
     // Minor-allele-frequency threshold.
@@ -71,18 +68,12 @@ typedef struct {
 // Creates a VCFLocusParser_t structure.
 // Accepts:
 //  char* fileName -> The name of the VCF file.
-//  kstring_t* regions -> Regions to include/exclude when reading in the VCF file.
-//                          See RegionSet.h on how to specify string.
-//                          All regions are parsed if NULL.
-//  bool takeComplement -> When false, regions in regions parameter are included during parsing.
-//                          When true, regions in the regions parameter are excluded during parsing.
-//                          Not used if regions is NULL.
 //  double maf -> Records with a minor-allele-frequency < maf are dropped.
 //  double afMissing -> Record with a proportion of missing genotypes >= afMissing are dropped.
 //  bool dropMonomorphicSites -> If set, records with monomorphic genotypes are dropped.
 // Returns: VCFLocusParser_t*, If fileName does not correspond to a file or regions could not be parsed, return NULL.
 //              Otherwise, return the created structure.
-VCFLocusParser_t* init_vcf_locus_parser(char* fileName, kstring_t* regions, bool takeComplement, double maf, double afMissing, bool dropMonomorphicSites);
+VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMissing, bool dropMonomorphicSites);
 
 // Get the next locus from a parser.
 // Accepts:

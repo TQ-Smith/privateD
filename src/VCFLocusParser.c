@@ -7,7 +7,7 @@
 
 #include "VCFLocusParser.h"
 
-VCFLocusParser_t* init_vcf_locus_parser(char* fileName, kstring_t* regions, bool takeComplement, double maf, double afMissing, bool dropMonomorphicSites) {
+VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMissing, bool dropMonomorphicSites) {
 
     // Open the GZ file.
     gzFile file = gzopen(fileName, "r");
@@ -64,17 +64,6 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, kstring_t* regions, bool
     parser -> isEOF = false;
     parser -> nextChrom = init_kstring(NULL);
     parser -> nextLocus = (Locus*) calloc(numSamples, sizeof(Locus));
-    if (regions == NULL)
-        parser -> set = NULL;
-    else {
-        // Try parsing the regions argument.
-        parser -> set = init_region_set(regions, takeComplement);
-        // If error, then free memory already allocated to parser, and return NULL for error.
-        if (parser -> set == NULL) {
-            destroy_vcf_locus_parser(parser);
-            return NULL;
-        }
-    }
 
     // Set fields from arguments.
     parser -> maf = maf;
@@ -114,7 +103,7 @@ void seek(VCFLocusParser_t* parser) {
         // This is alittle clunky, but I think it is faster than splitting on '\t'.
         numTabs = 0, prevIndex = 0, numAlleles = 2;
         isInSet = true;
-        for (int i = 0; i <= ks_len(parser -> buffer) && isInSet; i++) {
+        for (int i = 0; i <= ks_len(parser -> buffer); i++) {
             // If end of the line is reached or a tab was encountered.
             if (i == ks_len(parser -> buffer) || ks_str(parser -> buffer)[i] == '\t') {
                 if (numTabs == 0) {
@@ -123,9 +112,6 @@ void seek(VCFLocusParser_t* parser) {
                 } else if (numTabs == 1) {
                     // The second field is the position on the chromosome.
                     parser -> nextCoord = (int) strtol(ks_str(parser -> buffer) + prevIndex + 1, (char**) NULL, 10);
-                    // If a RegionSet was specified and the locus is not in the set, set flag and stop parsing record.
-                    if (parser -> set != NULL && !query_locus(parser -> set, parser -> nextChrom, (unsigned int) parser -> nextCoord))
-                        isInSet = false;
                 } else if (numTabs == 4) {
                     // The fifth field holds the ALT alleles. Each record has at least two alleles.
                     //  Each additional allele is appended with a ','. For each ',' encountered,
@@ -215,9 +201,6 @@ void destroy_vcf_locus_parser(VCFLocusParser_t* parser) {
     ks_destroy(parser -> stream);
     // Free the file name.
     destroy_kstring(parser -> fileName);
-    // If region set was allocated, destroy set.
-    if (parser -> set != NULL)
-        destroy_region_set(parser -> set);
     // Destroy the sample names.
     for (int i = 0; i < parser -> numSamples; i++)
         destroy_kstring(parser -> sampleNames[i]);
@@ -231,43 +214,3 @@ void destroy_vcf_locus_parser(VCFLocusParser_t* parser) {
     // Destroy the parser.
     free(parser);
 }
-
-// Used to test the parser.
-/*
-int main() {
-    
-    kstring_t* intervals = (kstring_t*) calloc(1, sizeof(kstring_t));
-    ks_overwrite("3", intervals);
-    VCFLocusParser_t* parser = init_vcf_locus_parser("./data/vcf_parser_test.vcf.gz", NULL, false, 0.4, 0.1, true);
-
-    printf("There are %d samples with the following names:\n", parser -> numSamples);
-    for (int i = 0; i < parser -> numSamples; i++)
-        printf("%s\n", ks_str(&(parser -> sampleNames[i])));
-    
-    kstring_t* chromosome = (kstring_t*) calloc(1, sizeof(kstring_t));
-    unsigned int position;
-    int numOfAlleles;
-    Locus* locus = (Locus*) calloc(parser -> numSamples, sizeof(Locus));
-
-    while(!parser -> isEOF) {
-
-        get_next_locus(parser, chromosome, &position, &numOfAlleles, &locus);
-        
-        printf("\n");
-        printf("Chromosome: %s\n", ks_str(chromosome));
-        printf("Position: %d\n", position);
-        printf("Num Alleles: %d\n", numOfAlleles);
-        printf("Genotypes:\n");
-        for (int i = 0; i < parser -> numSamples; i++)
-            printf("%x\n", locus[i]);
-        printf("\n");
-        
-    }
-
-    destroy_vcf_locus_parser(parser);
-    free(locus);
-    free(ks_str(chromosome)); free(chromosome);
-    free(ks_str(intervals)); free(intervals);
-    
-}
-*/
