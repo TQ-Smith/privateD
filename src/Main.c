@@ -1,5 +1,5 @@
 
-// File: main.c
+// File: Main.c
 // Date: 23 December 2024
 // Version 1: 
 // Author: T. Quinn Smith
@@ -11,36 +11,120 @@
 #include <math.h>
 #include "VCFLocusParser.h"
 #include "HaplotypeEncoder.h"
+#include "Block.h"
 #include "../lib/ketopt.h"
-#include "../lib/klist.h"
 #include "../lib/kstring.h"
 
 // Create a string-to-string hash table.
-KHASH_SET_INIT_STR(str)
+KHASH_MAP_INIT_STR(str, int)
 
-// Create an integer array associating sample name to population name.
-int* labelSamples() {
-    gzFile sampleToPopFile = gzopen(argv[2], "r");
+// Create an integer array associating sample index to population label.
+// Accepts:
+//  kstring_t** sampleNames -> The sample names from the VCF file.
+//  int numSamples -> The number of samples in the VCF file.
+//  char* sampleToPopFileName -> The file associating samples to populations.
+//  char* popList -> List of the three populations we are testing.
+// Returns: int*, An array associating the sample index to the population they belong from popList.
+//                  Labels are 1,2,3 for the first, second, third population in popList. -1 for not in popList.
+int* labelSamples(kstring_t** sampleNames, int numSamples, char* sampleToPopFileName, char* popList) {
+
+    // Check that three population names were supplied.
+    int n = 0;
+    for (int i = 0; i < strlen(popList); i++)
+        if (popList[i] == ',')
+            n++;
+    if (n != 2) {
+        printf("<popList> must contain three populations. Exiting!\n");
+        return NULL;
+    }
+
+    // Get the three population names.
+    char* token = strtok(popList, ",");
+    kstring_t* first = init_kstring(token);
+    token = strtok(NULL, ",");
+    kstring_t* second = init_kstring(token);
+    token = strtok(NULL, ",");
+    kstring_t* third = init_kstring(token);
+
+    // Create the file buffer to read in <sampleToPop.csv.gz>.
+    gzFile sampleToPopFile = gzopen(sampleToPopFileName, "r");
     int errnum;
     gzerror(sampleToPopFile, &errnum);
     if (errnum != Z_OK) {
+        destroy_kstring(first); destroy_kstring(second); destroy_kstring(third);
+        gzclose(sampleToPopFile);
         printf("<sampleToPop.csv> does not exist or not compressed using gzip. Exiting!\n");
-        return 1;
+        return NULL;
     }
-    // Create the file buffer to read in <sampleToPop.csv.gz>.
     kstream_t* stream = ks_init(sampleToPopFile);
     kstring_t* buffer = init_kstring(NULL);
-    
-    // Get the three population names.
-    int n;
-    int* fields = ksplit(s, ',', &n);
-	for (int i = 0; i < n; i++) {
-		
+    kstring_t* sampleName = init_kstring(NULL);
+    kstring_t* popName = init_kstring(NULL);
+
+    // Setup hash table.
+    khash_t(str) *h;
+    khint_t k;
+    h = kh_init(str);
+
+    // Parse <sampleToPop.csv>.
+    int dret, absent, commaPosition;
+    while ( ks_getuntil(stream, '\n', buffer, &dret) && dret != 0 ) {
+
+        // Find the comma on the line.
+        commaPosition = -1;
+        for (int i = 0; i < ks_len(buffer); i++)
+            if(ks_str(buffer)[i] == ',')
+                commaPosition = i; 
+            
+        // If the comma does not exist, throw error and exit.
+        if (commaPosition == -1) {
+            destroy_kstring(first); destroy_kstring(second); destroy_kstring(third); destroy_kstring(sampleName); destroy_kstring(popName);
+            gzclose(sampleToPopFile);
+            ks_destroy(stream);
+            destroy_kstring(buffer);
+            kh_destroy(str, h);
+            printf("<sampleToPop.csv> not formatted properly. Exiting!\n");
+            return NULL;
+        }
+
+        // Insert (sampleName, popName) into the hash table.
+        ks_overwriten(ks_str(buffer), commaPosition, sampleName);
+        ks_overwrite(ks_str(buffer) + commaPosition + 1, popName);
+
+        // If the name is not in <popList>, label it as -1.
+        int popLabel = -1;
+        if (strcmp(ks_str(popName), ks_str(first)) == 0)  {  popLabel = 1;  }
+        if (strcmp(ks_str(popName), ks_str(second)) == 0) {  popLabel = 2;  }
+        if (strcmp(ks_str(popName), ks_str(third)) == 0)  {  popLabel = 3;  }
+
+        k = kh_put(str, h, ks_str(sampleName), &absent);
+        if (absent) kh_key(h, k) = strdup(ks_str(sampleName));
+        kh_val(h, k) = popLabel;
+
     }
 
+    // Create association array.
+    int* samplesToLabel = calloc(numSamples, sizeof(int));
+    for (int i = 0; i < numSamples; i++) {
+        k = kh_get(str, h, ks_str(sampleNames[i]));
+        // Assign -1 if sample name does not have a pop label.
+        if (k == kh_end(h))
+            samplesToLabel[i] = -1;
+        else
+            samplesToLabel[i] = kh_val(h, k);
+    }
+
+    // Free used memory.
+    destroy_kstring(first); destroy_kstring(second); destroy_kstring(third); destroy_kstring(sampleName); destroy_kstring(popName);
     gzclose(sampleToPopFile);
     ks_destroy(stream);
     destroy_kstring(buffer);
+    for (k = 0; k < kh_end(h); k++)
+        if (kh_exist(h, k))
+            free((char*) kh_key(h, k));
+    kh_destroy(str, h);
+
+    return samplesToLabel;
 }
 
 // Print the help menu for privateD.
@@ -105,16 +189,51 @@ int main (int argc, char *argv[]) {
     }
 
     // Open VCF file for reading. If valid, create the haplotype encoder.
-    VCFLocusParser_t* vcfFile = init_vcf_locus_parser(argv[1], 0, 1, false);
+    VCFLocusParser_t* vcfFile = init_vcf_locus_parser(argv[argc - 3], 0, 1, false);
     if (vcfFile == NULL) {
         printf("Supplied VCF does not exist. Exiting!\n");
         return 1;
     }
     HaplotypeEncoder_t* encoder = init_haplotype_encoder(vcfFile -> numSamples);
 
+    // Get array associating each sample with a population label.
+    char* popList = strdup(argv[argc - 1]);
+    int* samplesToLabel = labelSamples(vcfFile -> sampleNames, vcfFile -> numSamples, argv[argc - 2], popList);
+    if (samplesToLabel == NULL) {
+        free(popList);
+        destroy_vcf_locus_parser(vcfFile);
+        destroy_haplotype_encoder(encoder);
+        return 1;
+    }
+
+    // Allocate memory for resulting values.
+    double* D = calloc(g - 1, sizeof(double));
+    double* lowerCI = calloc(g - 1, sizeof(double));
+    double* upperCI = calloc(g - 1, sizeof(double));
+    double* pvals = calloc(g - 1, sizeof(double));
+
+    // Calculate our statistics.
+    privateD(vcfFile, encoder, g, blockSize, h, D, lowerCI, upperCI, pvals);
+
+    // Echo command.
+    for (int i = 0; i < argc; i++) {
+        printf("%s ", argv[i]);
+    }
+    printf("\n");
+    printf("%5s\t%10s\t%10s\t%10s\t%10s\n", "g", "D^g", "95\% Lower", "95\% Upper", "p-vals");
+    for (int i = 2; i <= g; i++) {
+        printf("%5d\t%10.5f\t%10.5f\t%10.5f\t%10.5f\n", i, D[i - 2], lowerCI[i - 2], upperCI[i - 2], pvals[i - 2]);
+    }
+
     // Free all used memory.
     destroy_vcf_locus_parser(vcfFile);
     destroy_haplotype_encoder(encoder);
+    free(popList);
+    free(samplesToLabel);
+    free(D);
+    free(lowerCI);
+    free(upperCI);
+    free(pvals);
 
     return 0;
 }
