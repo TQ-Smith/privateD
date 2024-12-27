@@ -1,12 +1,12 @@
 
-// File: Block.h
+// File: PrivateD.h
 // Date: 26 December 2024
 // Author: T. Quinn Smith
 // Principal Investigator: Dr. Zachary A. Szpiech
 // Purpose: Compute privateD with weighted jackknife.
 
-#ifndef _BLOCK_H_
-#define _BLOCK_H_
+#ifndef _PRIVATE_D_H_
+#define _PRIVATE_D_H_
 
 #include "VCFLocusParser.h"
 #include "HaplotypeEncoder.h"
