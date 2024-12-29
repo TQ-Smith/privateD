@@ -22,6 +22,6 @@ Usage: privateD [options] <inFile.vcf.gz> <sampleToPop.tsv> <popList>
 
 Options:
     -g                      The maximum standardized sample size used for rarefaction. Default 2.
-    -b                      Block size for jackknife. Default 10,000 KB.
+    -b                      Block size for jackknife. Default 2 MB.
     -h                      Haplotype size in number of loci. Default 1.
 ```

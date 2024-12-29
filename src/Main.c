@@ -11,7 +11,7 @@
 #include <math.h>
 #include "VCFLocusParser.h"
 #include "HaplotypeEncoder.h"
-#include "Block.h"
+#include "PrivateD.h"
 #include "../lib/ketopt.h"
 #include "../lib/kstring.h"
 
@@ -142,8 +142,8 @@ void print_help() {
     printf("<sampleToPop.csv.gz>        Comma seperate file associating each sample with a population.\n");
     printf("<popList>                   Names of the three populations to test seperated by commas.\n\n");
     printf("Options:\n");
-    printf("    -g                      The maximum standardized sample size used for rarefaction. Default 2.\n");
-    printf("    -b                      Block size for jackknife. Default 10,000 KB.\n");
+    printf("    -g                      The maximum standardized sample size used for rarefaction. Default 1.\n");
+    printf("    -b                      Block size for jackknife. Default 2 MB.\n");
     printf("    -h                      Haplotype size in number of loci. Default 1.\n");
     printf("\n");
 }
@@ -160,8 +160,8 @@ int main (int argc, char *argv[]) {
     }
 
     // Default values for options.
-    int g = 2;
-    int blockSize = 10000;
+    int g = 1;
+    int blockSize = 2000000;
     int h = 1;
 
     // Parse options
@@ -169,14 +169,14 @@ int main (int argc, char *argv[]) {
     int c; 
     while ((c = ketopt(&options, argc, argv, 1, "g:b:h:", long_options)) >= 0) {
         if (c == 'g') { g = (int) strtol(options.arg, (char**) NULL, 10); }
-        if (c == 'b') { blockSize = (int) strtol(options.arg, (char**) NULL, 10); }
-        if (c == 'h') { h = (int) strtol(options.arg, (char**) NULL, 10); }
-        if (c == '?') { printf("Error! \"%s\" is unknown! Exiting ...\n", argv[options.i - 1]); return 1; }
+        else if (c == 'b') { blockSize = (int) strtol(options.arg, (char**) NULL, 10); }
+        else if (c == 'h') { h = (int) strtol(options.arg, (char**) NULL, 10); }
+        else { printf("Error! \"%s\" is unknown! Exiting ...\n", argv[options.i - 1]); return 1; }
 	}
 
     // Check options.
-    if (g < 2) {
-        printf("g must be >= 2. Exiting!\n");
+    if (g < 1) {
+        printf("g must be >= 1. Exiting!\n");
         return 1;
     }
     if (blockSize < 1) {
@@ -207,22 +207,21 @@ int main (int argc, char *argv[]) {
     }
 
     // Allocate memory for resulting values.
-    double* D = calloc(g - 1, sizeof(double));
-    double* lowerCI = calloc(g - 1, sizeof(double));
-    double* upperCI = calloc(g - 1, sizeof(double));
-    double* pvals = calloc(g - 1, sizeof(double));
+    double* D = calloc(g, sizeof(double));
+    double* stdError = calloc(g, sizeof(double));
+    double* pvals = calloc(g, sizeof(double));
 
     // Calculate our statistics.
-    privateD(vcfFile, encoder, g, blockSize, h, D, lowerCI, upperCI, pvals);
+    privateD(vcfFile, encoder, samplesToLabel, g, blockSize, h, D, stdError, pvals);
 
     // Echo command.
     for (int i = 0; i < argc; i++) {
         printf("%s ", argv[i]);
     }
-    printf("\n");
-    printf("%5s\t%10s\t%10s\t%10s\t%10s\n", "g", "D^g", "95\% Lower", "95\% Upper", "p-vals");
-    for (int i = 2; i <= g; i++) {
-        printf("%5d\t%10.5f\t%10.5f\t%10.5f\t%10.5f\n", i, D[i - 2], lowerCI[i - 2], upperCI[i - 2], pvals[i - 2]);
+    // Print results.
+    printf("\n%5s\t%10s\t%10s\t%10s\n", "g", "D^g", "stderr", "p-vals");
+    for (int i = 0; i < g; i++) {
+        printf("%5d\t%10.5f\t%10.5f\t%10.5f\n", i + 1, D[i], stdError[i], pvals[i]);
     }
 
     // Free all used memory.
@@ -231,8 +230,7 @@ int main (int argc, char *argv[]) {
     free(popList);
     free(samplesToLabel);
     free(D);
-    free(lowerCI);
-    free(upperCI);
+    free(stdError);
     free(pvals);
 
     return 0;

@@ -15,14 +15,14 @@
 // Accepts:
 //  VCFLocusParser_t* vcfFile -> The VCF to read.
 //  HaplotypeEncoder_t* encoder -> The encoder used for haplotypes.
+//  int* samplesToLabel -> Associates the sample with a population.
 //  int g -> Ranges from 2 to g for rarefaction sample size.
 //  int blockSize -> The block size used in the jackknife.
 //  int h -> The haplotype size.
 //  double* D -> Sets D^g for each g.
-//  double* lowerCI -> Sets the lower 95% confidence bound for D^g.
-//  double* upperCI -> Sets the upper 95% confidence bound for D^g.
+//  double* stdError -> Sets the standard error of D^g.
 //  double* pvals -> Sets the p-value for each g.
 // Returns: void.
-void privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, int g, int blockSize, int h, double* D, double* lowerCI, double* upperCI, double* pvals);
+void privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, int* samplesToLabel, int g, int blockSize, int h, double* D, double* stdError, double* pvals);
 
 #endif

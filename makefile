@@ -13,11 +13,11 @@ bin/privateD: src/Main.o
 	mkdir -p bin
 	$(CC) $(LFLAGS) bin/privateD src/*.o -lz -lm
 
-src/Main.o: src/HaplotypeEncoder.o src/Block.o
+src/Main.o: src/HaplotypeEncoder.o src/PrivateD.o
 	$(CC) $(CFLAGS) src/Main.c -o src/Main.o
 
-src/Block.o:
-	$(CC) $(CFLAGS) src/Block.c -o src/Block.o
+src/PrivateD.o:
+	$(CC) $(CFLAGS) src/PrivateD.c -o src/PrivateD.o
 
 src/HaplotypeEncoder.o: src/VCFLocusParser.o
 	$(CC) $(CFLAGS) src/HaplotypeEncoder.c -o src/HaplotypeEncoder.o
