@@ -189,7 +189,8 @@ int main (int argc, char *argv[]) {
     }
 
     // Open VCF file for reading. If valid, create the haplotype encoder.
-    VCFLocusParser_t* vcfFile = init_vcf_locus_parser(argv[argc - 3], 0, 1, false);
+    // QUESTION: Can we drop monomorphic sites/haplotypes? We can for sites.
+    VCFLocusParser_t* vcfFile = init_vcf_locus_parser(argv[argc - 3], 0, 1, true);
     if (vcfFile == NULL) {
         printf("Supplied VCF does not exist. Exiting!\n");
         return 1;
@@ -206,13 +207,28 @@ int main (int argc, char *argv[]) {
         return 1;
     }
 
+    // The number of haplotypes belonging to samples in the three populations.
+    int maxNumOfHaps = 0;
+    for (int i = 0; i < vcfFile -> numSamples; i++)
+        if (samplesToLabel[i] != -1)
+            maxNumOfHaps += 2;
+    
+    // Make sure we have a sufficient number of chromosomes for g.
+    if (g > maxNumOfHaps) {
+        printf("g is less than the number of chromosomes belonging to the three populations. Exiting!\n");
+        free(popList);
+        destroy_vcf_locus_parser(vcfFile);
+        destroy_haplotype_encoder(encoder);
+        return 1;
+    }
+
     // Allocate memory for resulting values.
     double* D = calloc(g, sizeof(double));
     double* stdError = calloc(g, sizeof(double));
     double* pvals = calloc(g, sizeof(double));
 
     // Calculate our statistics.
-    privateD(vcfFile, encoder, samplesToLabel, g, blockSize, h, D, stdError, pvals);
+    privateD(vcfFile, encoder, samplesToLabel, maxNumOfHaps, g, blockSize, h, D, stdError, pvals);
 
     // Echo command.
     for (int i = 0; i < argc; i++) {
