@@ -22,6 +22,57 @@ typedef struct {
     int denom;
 } Block_t;
 
+// Calculated weighted block jackknife standard errors and pvalues for D^g.
+//  References are Nick Patterson's notes and S. Sawyer's notes on the Jackknife.
+// Accepts:
+//  Block_t** blocks -> Our vector of blocks along the genome.
+//  int numBlocks -> The number of total blocks.
+//  Block_t* global -> Our genome-wide counts.
+//  double* D -> The global estimator.
+//  double* stdError -> Sets standard error for each D^g.
+//  double* pvals -> Sets p-values for each D^g.
+//  int g -> The standardized sample size.
+// Returns: void.
+void weighted_block_jackknife(Block_t** blocks, int numBlocks, Block_t* global, double* D, double* stdError, double* pvals, int g) {
+
+    // Compute the jackknifed estimator for each g.
+    double* jack_est = calloc(g, sizeof(double));
+    double leaveOutBlock;
+    for (int i = 0; i < g; i++) {
+        for (int j = 0; j < numBlocks; j++) {
+            leaveOutBlock = (global[i].num - blocks[j][i].num) / (double) (global[i].denom - blocks[j][i].denom);
+            jack_est[i] += (D[i] - leaveOutBlock) + ((blocks[j][i].denom * leaveOutBlock) / (double) global[i].denom);
+        }
+    }
+
+    // Compute the mean and variance of the pseudovalues.
+    //  We use stdError to hold the variance and pvals to hold the mean.
+    double pseudo, h;
+    for (int i = 0; i < g; i++) {
+        for (int j = 0; j < numBlocks; j++) {
+            leaveOutBlock = (global[i].num - blocks[j][i].num) / (double) (global[i].denom - blocks[j][i].denom);
+            h = global[i].denom / (double) blocks[j][i].denom;
+            pseudo = h * D[i] - (h - 1) * leaveOutBlock;
+            stdError[i] += (pseudo - D[i]) * (pseudo - D[i]) / (double) (h - 1);
+            pvals[i] += (1 - (blocks[j][i].denom / (double) global[i].denom));
+        }
+        stdError[i] /= numBlocks;
+        pvals[i] = numBlocks * D[i] - pvals[i];
+    }
+
+    // Finally, we calculate our standard errors and pvalues.
+    double std_error, Z;
+    for (int i = 0; i < g; i++) {
+        std_error = sqrt(stdError[i] / (double) global[i].denom);
+        Z = (pvals[i] - D[i]) / std_error;
+        stdError[i] = std_error;
+        pvals[i] = erfc(Z);
+    }
+
+    free(jack_est);
+
+}
+
 // Calculate Equation (1) from Szpiech et al. 2008.
 // Accepts:
 //  int Nj -> The size of pop j.
@@ -184,11 +235,6 @@ Block_t* get_next_block(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, 
         locus_privateD(temp, hapCounts, numUniqueHaps, g);
     }
 
-    printf("D =");
-    for (int i = 0; i < g; i++)
-        printf("\t%lf", temp[i].num / (double) temp[i].denom);
-    printf("\n");
-
     // Set the start position of the next block.
     if (!isOnSameChrom)
         *startOfNextBlock = 1;
@@ -235,11 +281,26 @@ void privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, int* sampl
         }
     }
 
+    // Convert list to array and destroy list.
+    int numBlocks = kv_size(blocks);
+    Block_t** b = calloc(numBlocks, sizeof(Block_t*));
+    for (int i = 0; i < numBlocks; i++)
+        b[i] = kv_A(blocks, i);
+    kv_destroy(blocks);
+
+    // Copy over global D^g values.
+    for (int i = 0; i < g; i++) {
+        D[i] = global[i].num / (double) global[i].denom;
+    }
+
+    // Calculate the jackknifed standard errors and pvals.
+    weighted_block_jackknife(b, numBlocks, global, D, stdError, pvals, g);
+
     // Free all used memory.
     free(sampleIndices);
     destroy_int_matrix(hapCounts, maxNumOfHaps + 1);
+    for (int i = 0; i < numBlocks; i++)
+        free(b[i]);
+    free(b);
     free(global);
-    for (int i = 0; i < kv_size(blocks); i++)
-        free(kv_A(blocks, i));
-    kv_destroy(blocks);
 }
