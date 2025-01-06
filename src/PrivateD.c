@@ -3,14 +3,14 @@
 // Date: 26 December 2024
 // Author: T. Quinn Smith
 // Principal Investigator: Dr. Zachary A. Szpiech
-// Purpose: Compute privateD with weighted jackknife.
+// Purpose: Compute privateD with weighted block jackknife.
 
 #include <math.h>
 #include "PrivateD.h"
 #include "Matrix.h"
 #include "../lib/kvec.h"
 
-// Our epsilong for floating point comparison.
+// Our epsilon for floating point comparison.
 #define EPS 1e-10
 
 MATRIX_INIT(int, int)
@@ -54,7 +54,7 @@ void weighted_block_jackknife(Block_t** blocks, int numBlocks, Block_t* global, 
             h = global[i].denom / (double) blocks[j][i].denom;
             pseudo = h * D[i] - (h - 1) * leaveOutBlock;
             stdError[i] += (pseudo - D[i]) * (pseudo - D[i]) / (double) (h - 1);
-            pvals[i] += (1 - (blocks[j][i].denom / (double) global[i].denom));
+            pvals[i] += (1 - (blocks[j][i].denom / (double) global[i].denom)) * leaveOutBlock;
         }
         stdError[i] /= numBlocks;
         pvals[i] = numBlocks * D[i] - pvals[i];
@@ -64,9 +64,9 @@ void weighted_block_jackknife(Block_t** blocks, int numBlocks, Block_t* global, 
     double std_error, Z;
     for (int i = 0; i < g; i++) {
         std_error = sqrt(stdError[i] / (double) global[i].denom);
-        Z = (pvals[i] - D[i]) / std_error;
+        Z = (D[i] - pvals[i]) / sqrt(stdError[i]);
         stdError[i] = std_error;
-        pvals[i] = erfc(Z);
+        pvals[i] = 1 - erf(Z);
     }
 
     free(jack_est);
@@ -107,9 +107,9 @@ void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int G) {
         pi23 = 0;
         // For each haplotype at the locus.
         for (int i = 1; i <= numUniqueHaps; i++) {
-            temp = log(1 - Q_ijg(hapCounts[0][1], hapCounts[i][1], g)) + log(1 - Q_ijg(hapCounts[0][2], hapCounts[i][2], g)) + log(Q_ijg(hapCounts[0][0], hapCounts[i][0], g));
-            pi13 += exp(temp);
             temp = log(1 - Q_ijg(hapCounts[0][0], hapCounts[i][0], g)) + log(1 - Q_ijg(hapCounts[0][2], hapCounts[i][2], g)) + log(Q_ijg(hapCounts[0][1], hapCounts[i][1], g));
+            pi13 += exp(temp);
+            temp = log(1 - Q_ijg(hapCounts[0][1], hapCounts[i][1], g)) + log(1 - Q_ijg(hapCounts[0][2], hapCounts[i][2], g)) + log(Q_ijg(hapCounts[0][0], hapCounts[i][0], g));
             pi23 += exp(temp);
         }
         // If pi13 and pi23 are NOT equal, the locus contributes to D^g.
@@ -117,7 +117,7 @@ void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int G) {
             if (pi23 > pi13)
                 block[g - 1].num += 1;
             else 
-                block[g - 1].num += 1;
+                block[g - 1].num -= 1;
             block[g - 1].denom += 1;
         }
     }

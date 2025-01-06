@@ -1,7 +1,7 @@
 
 // File: Main.c
 // Date: 23 December 2024
-// Version 1: 
+// Version 1: 6 January 2025
 // Author: T. Quinn Smith
 // Principal Investigator: Dr. Zachary A. Szpiech
 // Purpose: Three population introgression test using private allelic richness.
@@ -143,7 +143,7 @@ void print_help() {
     printf("<popList>                   Names of the three populations to test seperated by commas.\n\n");
     printf("Options:\n");
     printf("    -g                      The maximum standardized sample size used for rarefaction. Default 1.\n");
-    printf("    -b                      Block size for jackknife. Default 2 MB.\n");
+    printf("    -b                      Block size for weighted jackknife. Default 2 MB.\n");
     printf("    -h                      Haplotype size in number of loci. Default 1.\n");
     printf("\n");
 }
@@ -152,7 +152,7 @@ void print_help() {
 static ko_longopt_t long_options[] = { {NULL, 0, 0} };
 
 int main (int argc, char *argv[]) {
-    
+
     // If no arguments are given, print the help menu.
     if (argc == 1) {
         print_help();
