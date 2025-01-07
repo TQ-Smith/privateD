@@ -34,7 +34,7 @@ int* labelSamples(kstring_t** sampleNames, int numSamples, char* sampleToPopFile
         if (popList[i] == ',')
             n++;
     if (n != 2) {
-        printf("<popList> must contain three populations. Exiting!\n");
+        printf("<pop1>,<pop2>,<pop3> must contain three populations. Exiting!\n");
         return NULL;
     }
 
@@ -137,10 +137,10 @@ void print_help() {
     printf("Written by T. Quinn Smith\n");
     printf("Principal Investigator: Zachary A. Szpiech\n");
     printf("The Pennsylvania State University\n\n");
-    printf("Usage: privateD [options] <inFile.vcf.gz> <sampleToPop.csv.gz> <popList>\n\n");
+    printf("Usage: privateD [options] <inFile.vcf.gz> <sampleToPop.csv.gz> <pop1>,<pop2>,<pop3>\n\n");
     printf("<inFile.vcf.gz>             The input VCF file.\n");
     printf("<sampleToPop.csv.gz>        Comma seperate file associating each sample with a population.\n");
-    printf("<popList>                   Names of the three populations to test seperated by commas.\n\n");
+    printf("<pop1>,<pop2>,<pop3>        Names of the three populations in <sampleToPop.csv.gz>.\n\n");
     printf("Options:\n");
     printf("    -g                      The maximum standardized sample size used for rarefaction. Default 1.\n");
     printf("    -b                      Block size for weighted jackknife. Default 2 MB.\n");

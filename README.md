@@ -14,11 +14,11 @@ make
 
 ## Help
 ```
-Usage: privateD [options] <inFile.vcf.gz> <sampleToPop.tsv> <popList>
+Usage: privateD [options] <inFile.vcf.gz> <sampleToPop.tsv> <pop1>,<pop2>,<pop3>
 
 <inFile.vcf.gz>             The input VCF file.
 <sampleToPop.tsv>           Comma seperate file associating each sample with a population.
-<popList>                   Names of the three populations to test seperated by commas.
+<pop1>,<pop2>,<pop3>        Names of the three populations in <sampleToPop.csv.gz>.
 
 Options:
     -g                      The maximum standardized sample size used for rarefaction. Default 2.
