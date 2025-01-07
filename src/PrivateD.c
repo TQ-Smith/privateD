@@ -64,9 +64,9 @@ void weighted_block_jackknife(Block_t** blocks, int numBlocks, Block_t* global, 
     double std_error, Z;
     for (int i = 0; i < g; i++) {
         std_error = sqrt(stdError[i] / (double) global[i].denom);
-        Z = (D[i] - pvals[i]) / sqrt(stdError[i]);
+        Z = D[i] / stdError[i];
         stdError[i] = std_error;
-        pvals[i] = 1 - erf(Z);
+        pvals[i] = 2 * erf(-fabs(Z));
     }
 
     free(jack_est);
