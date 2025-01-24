@@ -45,8 +45,8 @@ void weighted_block_jackknife(Block_t** blocks, int numBlocks, Block_t* global, 
         }
     }
 
-    // Compute the mean and variance of the pseudovalues.
-    //  We use stdError to hold the variance and pvals to hold the mean.
+    // Compute the variance of the pseudovalues.
+    //  We use stdError to hold the variances.
     double pseudo, h;
     for (int i = 0; i < g; i++) {
         for (int j = 0; j < numBlocks; j++) {
@@ -54,10 +54,8 @@ void weighted_block_jackknife(Block_t** blocks, int numBlocks, Block_t* global, 
             h = global[i].denom / (double) blocks[j][i].denom;
             pseudo = h * D[i] - (h - 1) * leaveOutBlock;
             stdError[i] += (pseudo - D[i]) * (pseudo - D[i]) / (double) (h - 1);
-            pvals[i] += (1 - (blocks[j][i].denom / (double) global[i].denom)) * leaveOutBlock;
         }
         stdError[i] /= numBlocks;
-        pvals[i] = numBlocks * D[i] - pvals[i];
     }
 
     // Finally, we calculate our standard errors and pvalues.
