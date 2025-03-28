@@ -38,67 +38,64 @@ int* labelSamples(kstring_t** sampleNames, int numSamples, char* sampleToPopFile
         return NULL;
     }
 
-    // Get the three population names.
-    char* token = strtok(popList, ",");
-    kstring_t* first = init_kstring(token);
-    token = strtok(NULL, ",");
-    kstring_t* second = init_kstring(token);
-    token = strtok(NULL, ",");
-    kstring_t* third = init_kstring(token);
+    // The three population names.
+    char* tok;
+    char* first;
+    char* second;
+    char* third;
 
-    // Create the file buffer to read in <sampleToPop.csv.gz>.
-    gzFile sampleToPopFile = gzopen(sampleToPopFileName, "r");
-    int errnum;
-    gzerror(sampleToPopFile, &errnum);
-    if (errnum != Z_OK) {
-        destroy_kstring(first); destroy_kstring(second); destroy_kstring(third);
-        gzclose(sampleToPopFile);
-        printf("<sampleToPop.csv> does not exist or not compressed using gzip. Exiting!\n");
+    // Get the three population names.
+    tok = strtok(popList, ",");
+    first = strdup(tok);
+    tok = strtok(NULL, ",");
+    second = strdup(tok);
+    tok = strtok(NULL, ",");
+    third = strdup(tok);
+
+    // Create the file buffer to read in <sampleToPop.tsv>.
+    FILE* sampleToPopFile = fopen(sampleToPopFileName, "r");
+    if (sampleToPopFile == NULL) {
+        printf("<sampleToPop.tsv> does not exist. Exiting!\n");
         return NULL;
     }
-    kstream_t* stream = ks_init(sampleToPopFile);
-    kstring_t* buffer = init_kstring(NULL);
-    kstring_t* sampleName = init_kstring(NULL);
-    kstring_t* popName = init_kstring(NULL);
+    
+    // Used for reading in sampleToPopFile.
+    char sampleName[512];
+    char popName[512];
 
     // Setup hash table.
     khash_t(str) *h;
     khint_t k;
     h = kh_init(str);
 
-    // Parse <sampleToPop.csv>.
-    int dret, absent, commaPosition;
-    while ( ks_getuntil(stream, '\n', buffer, &dret) && dret != 0 ) {
+    int numFields = 0;
 
-        // Find the comma on the line.
-        commaPosition = -1;
-        for (int i = 0; i < ks_len(buffer); i++)
-            if(ks_str(buffer)[i] == ',')
-                commaPosition = i; 
-            
-        // If the comma does not exist, throw error and exit.
-        if (commaPosition == -1) {
-            destroy_kstring(first); destroy_kstring(second); destroy_kstring(third); destroy_kstring(sampleName); destroy_kstring(popName);
-            gzclose(sampleToPopFile);
-            ks_destroy(stream);
-            destroy_kstring(buffer);
+    // Parse <sampleToPop.tsv>.
+    int absent;
+    while ( !feof(sampleToPopFile) ) {
+
+        numFields = fscanf(sampleToPopFile, "%s\t%s\n", sampleName, popName);
+
+        // Invalid file. Free memory and return.
+        if (numFields != 2) {
+            for (k = 0; k < kh_end(h); k++)
+                if (kh_exist(h, k))
+                    free((char*) kh_key(h, k));
             kh_destroy(str, h);
-            printf("<sampleToPop.csv> not formatted properly. Exiting!\n");
+            fclose(sampleToPopFile);
+            printf("<sampleToPop.tsv> improperly formatted. Exiting!\n");
             return NULL;
         }
 
-        // Insert (sampleName, popName) into the hash table.
-        ks_overwriten(ks_str(buffer), commaPosition, sampleName);
-        ks_overwrite(ks_str(buffer) + commaPosition + 1, popName);
-
         // If the name is not in <popList>, label it as -1.
         int popLabel = -1;
-        if (strcmp(ks_str(popName), ks_str(first)) == 0)  {  popLabel = 1;  }
-        if (strcmp(ks_str(popName), ks_str(second)) == 0) {  popLabel = 2;  }
-        if (strcmp(ks_str(popName), ks_str(third)) == 0)  {  popLabel = 3;  }
+        if (strcmp(popName, first) == 0)  {  popLabel = 1;  }
+        if (strcmp(popName, second) == 0) {  popLabel = 2;  }
+        if (strcmp(popName, third) == 0)  {  popLabel = 3;  }
 
-        k = kh_put(str, h, ks_str(sampleName), &absent);
-        if (absent) kh_key(h, k) = strdup(ks_str(sampleName));
+        // Insert into hash table.
+        k = kh_put(str, h, sampleName, &absent);
+        if (absent) kh_key(h, k) = strdup(sampleName);
         kh_val(h, k) = popLabel;
 
     }
@@ -115,10 +112,8 @@ int* labelSamples(kstring_t** sampleNames, int numSamples, char* sampleToPopFile
     }
 
     // Free used memory.
-    destroy_kstring(first); destroy_kstring(second); destroy_kstring(third); destroy_kstring(sampleName); destroy_kstring(popName);
-    gzclose(sampleToPopFile);
-    ks_destroy(stream);
-    destroy_kstring(buffer);
+    free(first); free(second); free(third);
+    fclose(sampleToPopFile);
     for (k = 0; k < kh_end(h); k++)
         if (kh_exist(h, k))
             free((char*) kh_key(h, k));
@@ -137,14 +132,15 @@ void print_help() {
     printf("Written by T. Quinn Smith\n");
     printf("Principal Investigator: Zachary A. Szpiech\n");
     printf("The Pennsylvania State University\n\n");
-    printf("Usage: privateD [options] <inFile.vcf.gz> <sampleToPop.csv.gz> <pop1>,<pop2>,<pop3>\n\n");
+    printf("Usage: privateD [options] <inFile.vcf.gz> <sampleToPop.tsv> <pop1>,<pop2>,<pop3>\n\n");
     printf("<inFile.vcf.gz>             The input VCF file.\n");
-    printf("<sampleToPop.csv.gz>        Comma seperate file associating each sample with a population.\n");
+    printf("<sampleToPop.tsv>           Tab seperate file associating each sample with a population.\n");
     printf("<pop1>,<pop2>,<pop3>        Names of the three populations in <sampleToPop.csv.gz>.\n\n");
     printf("Options:\n");
     printf("    -g                      The maximum standardized sample size used for rarefaction. Default 1.\n");
     printf("    -b                      Block size for weighted jackknife. Default 2 MB.\n");
     printf("    -h                      Haplotype size in number of loci. Default 1.\n");
+    printf("    -o                      The outputbase name.\n");
     printf("\n");
 }
 
@@ -163,14 +159,16 @@ int main (int argc, char *argv[]) {
     int g = 1;
     int blockSize = 2000000;
     int h = 1;
+    char* outputBasename = NULL;
 
     // Parse options
     ketopt_t options = KETOPT_INIT;
     int c; 
-    while ((c = ketopt(&options, argc, argv, 1, "g:b:h:", long_options)) >= 0) {
+    while ((c = ketopt(&options, argc, argv, 1, "g:b:h:o:", long_options)) >= 0) {
         if (c == 'g') { g = (int) strtol(options.arg, (char**) NULL, 10); }
         else if (c == 'b') { blockSize = (int) strtol(options.arg, (char**) NULL, 10); }
         else if (c == 'h') { h = (int) strtol(options.arg, (char**) NULL, 10); }
+        else if (c == 'o') {outputBasename = options.arg;}
         else { printf("Error! \"%s\" is unknown! Exiting ...\n", argv[options.i - 1]); return 1; }
 	}
 
@@ -186,6 +184,10 @@ int main (int argc, char *argv[]) {
     if (h < 1) {
         printf("h must be >= 1. Exiting!\n");
         return 1;
+    }
+    if (outputBasename == NULL) {
+        printf("-o must be given an argument. Exiting!\n");
+        return -1;
     }
 
     // Open VCF file for reading. If valid, create the haplotype encoder.
@@ -215,39 +217,100 @@ int main (int argc, char *argv[]) {
     
     // Make sure we have a sufficient number of chromosomes for g.
     if (g > maxNumOfHaps) {
-        printf("g is less than the number of chromosomes belonging to the three populations. Exiting!\n");
+        printf("g is more than the number of chromsomes belonging to the three populations. Exiting!\n");
         free(popList);
         destroy_vcf_locus_parser(vcfFile);
         destroy_haplotype_encoder(encoder);
         return 1;
     }
 
-    // Allocate memory for resulting values.
-    double* D = calloc(g, sizeof(double));
-    double* stdError = calloc(g, sizeof(double));
-    double* pvals = calloc(g, sizeof(double));
+    printf("Partitioning genome into blocks ...\n");
+    // Block our genome.
+    BlockList_t* blockList = privateD(vcfFile, encoder, samplesToLabel, maxNumOfHaps, g, blockSize, h);
 
-    // Calculate our statistics.
-    privateD(vcfFile, encoder, samplesToLabel, maxNumOfHaps, g, blockSize, h, D, stdError, pvals);
+    printf("Executing weight block jackknife ...\n");
+    // Execute jackknife.
+    weighted_block_jackknife(blockList);
 
-    // Echo command.
+    // Print results to the files.
+    printf("Printing results to files ...\n");
+
+    // Open our three files.
+    kstring_t* output = init_kstring(outputBasename);
+    kputs("_block_pvals.tsv", output);
+    FILE* blocksPvals = fopen(ks_str(output), "w");
+    ks_overwrite(outputBasename, output);
+    kputs("_block_privateD.tsv", output);
+    FILE* blocksD = fopen(ks_str(output), "w");
+    ks_overwrite(outputBasename, output);
+    kputs("_global.tsv", output);
+    FILE* global = fopen(ks_str(output), "w");
+    destroy_kstring(output);
+
+    // Print header information.
+    fprintf(blocksPvals, "#Command: ");
+    fprintf(blocksD, "#Command: ");
+    fprintf(global, "#Command: ");
     for (int i = 0; i < argc; i++) {
-        printf("%s ", argv[i]);
+        fprintf(blocksPvals, "%s ", argv[i]);
+        fprintf(blocksD, "%s ", argv[i]);
+        fprintf(global, "%s ", argv[i]);
     }
-    // Print results.
-    printf("\n%5s\t%10s\t%10s\t%10s\n", "g", "D^g", "stderr", "p-vals");
-    for (int i = 0; i < g; i++) {
-        printf("%5d\t%10.5f\t%10.5f\t%10.5f\n", i + 1, D[i], stdError[i], pvals[i]);
+    fprintf(blocksPvals, "\n");
+    fprintf(blocksD, "\n");
+    fprintf(global, "\n");
+    fprintf(blocksPvals, "BlockNum\tBlockNumOnChrom\tChrom\tStart\tEnd\tNumHaps");
+    fprintf(blocksD, "BlockNum\tBlockNumOnChrom\tChrom\tStart\tEnd\tNumHaps");
+    fprintf(global, "Value\tNumBlocks");
+    for (int i = 1; i <= g; i++) {
+        fprintf(blocksPvals, "\tg%d", i);
+        fprintf(blocksD, "\tg%d", i);
+        fprintf(global, "\tg%d", i);
     }
+    fprintf(blocksPvals, "\n");
+    fprintf(blocksD, "\n");
+    fprintf(blocksD, "\n");
 
+    // Print block information.
+    Block_t* curBlock = blockList -> head;
+    for (int i = 0; i < blockList -> numBlocks; i++) {
+        fprintf(blocksPvals, "%d\t%d\t%s\t%d\t%d\t%d", curBlock -> blockNum, curBlock -> blockNumOnChrom, curBlock -> chrom, curBlock -> startCoordinate, curBlock -> endCoordinate, curBlock -> numHaps);
+        fprintf(blocksD, "%d\t%d\t%s\t%d\t%d\t%d", curBlock -> blockNum, curBlock -> blockNumOnChrom, curBlock -> chrom, curBlock -> startCoordinate, curBlock -> endCoordinate, curBlock -> numHaps);
+        for (int j = 0; j < g; j++) {
+            fprintf(blocksPvals, "\t%lf", curBlock -> rarefactCounts[j].p);
+            fprintf(blocksPvals, "\t%lf", curBlock -> rarefactCounts[j].num / (double) curBlock -> rarefactCounts[j].denom);
+        }
+        fprintf(blocksPvals, "\n");
+        fprintf(blocksD, "\n");
+        curBlock = curBlock -> next;
+    }
+    // Print global information.
+    fprintf(global, "privateD\t%d", blockList -> numBlocks);
+    for (int i = 0; i < g; i++) {
+        fprintf(global, "\t%lf", blockList -> rarefactCounts[i].num / (double) blockList -> rarefactCounts[i].denom);
+    }
+    fprintf(global, "\n");
+    fprintf(global, "pvals\t%d", blockList -> numBlocks);
+    for (int i = 0; i < g; i++) {
+        fprintf(global, "\t%lf", blockList -> rarefactCounts[i].p);
+    }
+    fprintf(global, "\n");
+    fprintf(global, "stderrs\t%d", blockList -> numBlocks);
+    for (int i = 0; i < g; i++) {
+        fprintf(global, "\t%lf", blockList -> stderrs[i]);
+    }
+    fprintf(global, "\n");
+
+    printf("Done!\n");
+    fclose(blocksPvals);
+    fclose(blocksD);
+    fclose(global);
     // Free all used memory.
     destroy_vcf_locus_parser(vcfFile);
     destroy_haplotype_encoder(encoder);
     free(popList);
     free(samplesToLabel);
-    free(D);
-    free(stdError);
-    free(pvals);
+    destroy_block_list(blockList);
 
     return 0;
 }

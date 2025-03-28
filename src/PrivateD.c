@@ -8,66 +8,73 @@
 #include <math.h>
 #include "PrivateD.h"
 #include "Matrix.h"
-#include "../lib/kvec.h"
 
 // Our epsilon for floating point comparison.
 #define EPS 1e-10
 
 MATRIX_INIT(int, int)
 
-// Define a block used in the jackknife.
-typedef struct {
-    // The numerator and denominator for D^g within the given block.
-    int num;
-    int denom;
-} Block_t;
+// Calculate the pvalue from the estimator and the standard error
+//  given by a jackknife.
+static inline double normCDF(double x) {
+    return 0.05 * (1 + erf(x / sqrt(2)));
+}
+static inline double pval(double val, double stderr) {
+    double Z = fabs(val) / stderr;
+    return 2 * (1 - normCDF(Z));
+}
 
 // Calculated weighted block jackknife standard errors and pvalues for D^g.
-//  References are Nick Patterson's notes and S. Sawyer's notes on the Jackknife.
+//  References are Nick Patterson's notes.
 // Accepts:
-//  Block_t** blocks -> Our vector of blocks along the genome.
-//  int numBlocks -> The number of total blocks.
-//  Block_t* global -> Our genome-wide counts.
-//  double* D -> The global estimator.
-//  double* stdError -> Sets standard error for each D^g.
-//  double* pvals -> Sets p-values for each D^g.
-//  int g -> The standardized sample size.
+//  BlockList_t* globalList -> Our list of blocks along the genome.
 // Returns: void.
-void weighted_block_jackknife(Block_t** blocks, int numBlocks, Block_t* global, double* D, double* stdError, double* pvals, int g) {
+void weighted_block_jackknife(BlockList_t* globalList) {
+    int g = globalList -> g;
 
     // Compute the jackknifed estimator for each g.
-    double* jack_est = calloc(g, sizeof(double));
-    double leaveOutBlock;
-    for (int i = 0; i < g; i++) {
-        for (int j = 0; j < numBlocks; j++) {
-            leaveOutBlock = (global[i].num - blocks[j][i].num) / (double) (global[i].denom - blocks[j][i].denom);
-            jack_est[i] += (D[i] - leaveOutBlock) + ((blocks[j][i].denom * leaveOutBlock) / (double) global[i].denom);
+    double leaveOutBlock, est;
+    double* jackEst = calloc(g, sizeof(double));
+    Block_t* curBlock = globalList -> head;
+    for (int i = 0; i < globalList -> numBlocks; i++) {
+        for (int j = 0; i < g; i++) {
+            leaveOutBlock = (globalList -> rarefactCounts[j].num - curBlock -> rarefactCounts[j].num) / (double) (globalList -> rarefactCounts[j].denom - curBlock -> rarefactCounts[j].denom);
+            est = globalList -> rarefactCounts[j].num / (double) globalList -> rarefactCounts[j].denom;
+            jackEst[i] += (est - leaveOutBlock) + ((curBlock -> rarefactCounts[j].denom * leaveOutBlock) / (double) globalList -> rarefactCounts[j].denom);
         }
+        curBlock = curBlock -> next;
     }
 
     // Compute the variance of the pseudovalues.
-    //  We use stdError to hold the variances.
-    double pseudo, h;
-    for (int i = 0; i < g; i++) {
-        for (int j = 0; j < numBlocks; j++) {
-            leaveOutBlock = (global[i].num - blocks[j][i].num) / (double) (global[i].denom - blocks[j][i].denom);
-            h = global[i].denom / (double) blocks[j][i].denom;
-            pseudo = h * D[i] - (h - 1) * leaveOutBlock;
-            stdError[i] += (pseudo - D[i]) * (pseudo - D[i]) / (double) (h - 1);
+    double h, pseudo;
+    curBlock = globalList -> head;
+    for (int i = 0; i < globalList -> numBlocks; i++) {
+        for (int j = 0; i < g; i++) {
+            leaveOutBlock = (globalList -> rarefactCounts[j].num - curBlock -> rarefactCounts[j].num) / (double) (globalList -> rarefactCounts[j].denom - curBlock -> rarefactCounts[j].denom);
+            h = globalList -> rarefactCounts[j].denom / (double) curBlock -> rarefactCounts[j].denom;
+            est = globalList -> rarefactCounts[j].num / (double) globalList -> rarefactCounts[j].denom;
+            pseudo = h * est - (h - 1) * leaveOutBlock;
+            globalList -> stderrs[j] += (pseudo - est) * (pseudo - est) / (double) (h - 1);
         }
-        stdError[i] /= numBlocks;
+        curBlock = curBlock -> next;
     }
 
-    // Finally, we calculate our standard errors and pvalues.
-    double std_error, Z;
+    // Calculate standard errors.
     for (int i = 0; i < g; i++) {
-        std_error = sqrt(stdError[i] / (double) global[i].denom);
-        Z = D[i] / stdError[i];
-        stdError[i] = std_error;
-        pvals[i] = 2 * erf(-fabs(Z));
+        globalList -> stderrs[i] = sqrt(globalList -> stderrs[i] / globalList -> numBlocks);
     }
 
-    free(jack_est);
+    // Finally, we calculate the p-values.
+    for (int i = 0; i < g; i++) {
+        curBlock = globalList -> head;
+        for (int j = 0; j < globalList -> numBlocks; j++) {
+            curBlock -> rarefactCounts[i].p = pval(curBlock -> rarefactCounts[i].num / (double) curBlock -> rarefactCounts[i].denom, globalList -> stderrs[i]);
+            curBlock = curBlock -> next;
+        }
+        globalList -> rarefactCounts[i].p = pval(globalList -> rarefactCounts[i].num / (double) globalList -> rarefactCounts[i].denom, globalList -> stderrs[i]);
+    }
+
+    free(jackEst);
 
 }
 
@@ -113,10 +120,10 @@ void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int G) {
         // If pi13 and pi23 are NOT equal, the locus contributes to D^g.
         if (fabs(pi13 - pi23) > EPS) {
             if (pi23 > pi13)
-                block[g - 1].num += 1;
+                block -> rarefactCounts[g - 1].num += 1;
             else 
-                block[g - 1].num -= 1;
-            block[g - 1].denom += 1;
+                block -> rarefactCounts[g - 1].num -= 1;
+            block -> rarefactCounts[g - 1].denom += 1;
         }
     }
  
@@ -208,9 +215,13 @@ Block_t* get_next_block(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, 
     // No block to return if end of file reached.
     if (vcfFile -> isEOF)
         return NULL;
-    
+
     // Create our block.
-    Block_t* temp = calloc(g, sizeof(Block_t));
+    Block_t* block = init_block(ks_str(vcfFile -> nextChrom), vcfFile -> nextCoord, g);
+    if (*startOfNextBlock == 1)
+        block -> blockNumOnChrom = 1;
+    else 
+        block -> blockNumOnChrom++;
 
     // Find start of the block the next record is in.
     if (*startOfNextBlock < vcfFile -> nextCoord)
@@ -223,30 +234,32 @@ Block_t* get_next_block(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, 
     bool isOnSameChrom = true;
     while (isOnSameChrom && vcfFile -> nextCoord <= endOfBlock) {
         isOnSameChrom = get_next_haplotype(vcfFile, encoder, h);
-        // QUESTION: There is a possibility that a D^g is 0 within the block.
-        //  Should we exclude these blocks? Ask Zach at some point.
 
         // Create table of haplotype counts.
         int numUniqueHaps = accumulate_counts(encoder, sampleIndices, samplesToLabel, hapCounts, numSamplesInPops);
 
         // Calculate privateD for locus.
-        locus_privateD(temp, hapCounts, numUniqueHaps, g);
+        locus_privateD(block, hapCounts, numUniqueHaps, g);
+
+        block -> numHaps++;
     }
+
+    block -> endCoordinate = encoder -> endCoord;
 
     // Set the start position of the next block.
     if (!isOnSameChrom)
         *startOfNextBlock = 1;
-    else 
+    else
         *startOfNextBlock = endOfBlock + 1;
 
     // Return the block.
-    return temp;
+    return block;
 
 }
 
-void privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, int* samplesToLabel, int maxNumOfHaps, int g, int blockSize, int h, double* D, double* stdError, double* pvals) {
-
-    // Indices of our samples in the three populations.
+BlockList_t* privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, int* samplesToLabel, int maxNumOfHaps, int g, int blockSize, int h) {
+    
+    // Indices of our samples in the three populations in the VCF file.
     int* sampleIndices = calloc(maxNumOfHaps / 2, sizeof(int));
     int counter = 0;
     for (int i = 0; i < vcfFile -> numSamples; i++) {
@@ -261,44 +274,25 @@ void privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, int* sampl
     //        This is meant to accomodate missing data.
     int** hapCounts = create_int_matrix(maxNumOfHaps + 1, 3);
 
-    // Our genome-wide block.
-    Block_t* global = calloc(g, sizeof(Block_t));
-
     // Our list of blocks.
-    kvec_t(Block_t*) blocks;
-	kv_init(blocks);
+    BlockList_t* globalList = init_block_list(g);
 
-    // Accumulate our blocks.
+    // We use this to track start coordinate of the next block.
     int startOfNextBlock = 1;
+    // Accumulate our blocks.
     Block_t* temp = NULL;
     while ((temp = get_next_block(vcfFile, encoder, sampleIndices, samplesToLabel, hapCounts, maxNumOfHaps / 2, g, blockSize, h, &startOfNextBlock)) != NULL) {
-        kv_push(Block_t*, blocks, temp);
+        appendBlock(globalList, temp);
+        // Add counts from block to global.
         for (int i = 0; i < g; i++) {
-            global[i].num += temp -> num;
-            global[i].denom += temp -> denom;
+            globalList -> rarefactCounts[i].num += temp -> rarefactCounts[i].num;
+            globalList -> rarefactCounts[i].denom += temp -> rarefactCounts[i].denom;
         }
     }
-
-    // Convert list to array and destroy list.
-    int numBlocks = kv_size(blocks);
-    Block_t** b = calloc(numBlocks, sizeof(Block_t*));
-    for (int i = 0; i < numBlocks; i++)
-        b[i] = kv_A(blocks, i);
-    kv_destroy(blocks);
-
-    // Copy over global D^g values.
-    for (int i = 0; i < g; i++) {
-        D[i] = global[i].num / (double) global[i].denom;
-    }
-
-    // Calculate the jackknifed standard errors and pvals.
-    weighted_block_jackknife(b, numBlocks, global, D, stdError, pvals, g);
 
     // Free all used memory.
     free(sampleIndices);
     destroy_int_matrix(hapCounts, maxNumOfHaps + 1);
-    for (int i = 0; i < numBlocks; i++)
-        free(b[i]);
-    free(b);
-    free(global);
+
+    return globalList;
 }
