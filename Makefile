@@ -1,6 +1,6 @@
 
 # File: Makefile
-# Date: 23 December 2024
+# Date: 
 # Author: T. Quinn Smith
 # Principal Investigator: Dr. Zachary A. Szpiech
 # Purpose: Build privateD.
