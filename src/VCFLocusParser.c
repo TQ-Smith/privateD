@@ -23,31 +23,29 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
     kstream_t* stream = ks_init(file);
     
     // Initialize the buffer to read in from the stream.
-    kstring_t* buffer = init_kstring(NULL);
+    kstring_t* buffer = calloc(1, sizeof(kstring_t));
     
     // Parse all the meta data in the VCF file.
     int dret;
     do {
         ks_getuntil(stream, '\n', buffer, &dret);
-    } while (strncmp(ks_str(buffer), "#C", 2) != 0);
+    } while (strncmp(buffer -> s, "#C", 2) != 0);
     
     // Count the number of samples in the header of the VCF file.
     int numSamples = 0;
-    for (int i = 0; i < ks_len(buffer); i++)
+    for (int i = 0; i < buffer -> l; i++)
         if (buffer -> s[i] == '\t')
             numSamples++;
     numSamples -= 8;
     
     // Allocate the array to hold the sample names.
-    kstring_t** sampleNames = (kstring_t**) calloc(numSamples, sizeof(kstring_t*));
+    char** sampleNames = (char**) calloc(numSamples, sizeof(char*));
     // Read in the sample names.
     int numTabs = 0, prevIndex;
-    for (int i = 0; i <= ks_len(buffer); i++) {
-        if (i == ks_len(buffer) || ks_str(buffer)[i] == '\t') {
-            if (numTabs > 8) {
-                sampleNames[numTabs - 9] = init_kstring(NULL);
-                kputsn(ks_str(buffer) + prevIndex + 1, i - prevIndex - 1, sampleNames[numTabs - 9]);
-            }
+    for (int i = 0; i <= buffer -> l; i++) {
+        if (i == buffer -> l || buffer -> s[i] == '\t') {
+            if (numTabs > 8)
+                sampleNames[numTabs - 9] = strndup(buffer -> s + prevIndex + 1, i - prevIndex - 1);
             prevIndex = i;
             numTabs++;
         }
@@ -55,25 +53,25 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
     
     // Allocate our structure and the memory for its fields.
     VCFLocusParser_t* parser = (VCFLocusParser_t*) calloc(1, sizeof(VCFLocusParser_t));
-    parser -> fileName = init_kstring(fileName);
+    parser -> fileName = strdup(fileName);
     parser -> file = file;
     parser -> stream = stream;
     parser -> numSamples = numSamples;
     parser -> sampleNames = sampleNames;
     parser -> buffer = buffer;
     parser -> isEOF = false;
-    parser -> nextChrom = init_kstring(NULL);
     parser -> nextLocus = (Locus*) calloc(numSamples, sizeof(Locus));
 
     // Set fields from arguments.
     parser -> maf = maf;
     parser -> afMissing = afMissing;
     parser -> dropMonomorphicSites = dropMonomorphicSites;
-    for (int i = 0; i < 16; i++)
+    parser -> alleleCounts = calloc(MAX_NUM_ALLELES, sizeof(int));
+    for (int i = 0; i < MAX_NUM_ALLELES; i++)
         parser -> alleleCounts[i] = 0;
 
     // Prime the first record.
-    get_next_locus(parser, parser -> nextChrom, &(parser -> nextCoord), &(parser -> nextNumAlleles), &(parser -> nextLocus));
+    get_next_locus(parser, &(parser -> nextChrom), &(parser -> nextCoord), &(parser -> nextNumAlleles), &(parser -> nextLocus));
     
     // Return created parser.
     return parser;
@@ -83,7 +81,6 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
 void seek(VCFLocusParser_t* parser) {
 
     int dret, numTabs, prevIndex, numAlleles;
-    bool isInSet;
     Locus l;
     double maf, afMissing, afMax, af;
 
@@ -95,36 +92,34 @@ void seek(VCFLocusParser_t* parser) {
         ks_getuntil(parser -> stream, '\n', parser -> buffer, &dret);
 
         // If EOF or nothing was read in (for safety), set EOF flag and return.
-        if (ks_eof(parser -> stream) || ks_len(parser -> buffer) == 0) {
+        if (ks_eof(parser -> stream) || parser -> buffer -> l == 0) {
             parser -> isEOF = true;
             return;
         }
 
         // This is alittle clunky, but I think it is faster than splitting on '\t'.
         numTabs = 0, prevIndex = 0, numAlleles = 2;
-        isInSet = true;
-        for (int i = 0; i <= ks_len(parser -> buffer); i++) {
+        for (int i = 0; i <= parser -> buffer -> l; i++) {
             // If end of the line is reached or a tab was encountered.
-            if (i == ks_len(parser -> buffer) || ks_str(parser -> buffer)[i] == '\t') {
+            if (i == parser -> buffer -> l || parser -> buffer -> s[i] == '\t') {
                 if (numTabs == 0) {
                     // The first field in a record is the chromosome name.
-                    ks_overwriten(ks_str(parser -> buffer), i, parser -> nextChrom);
+                    if (parser -> nextChrom != NULL)
+                        free(parser -> nextChrom);
+                    parser -> nextChrom = strndup(parser -> buffer -> s, i);
                 } else if (numTabs == 1) {
                     // The second field is the position on the chromosome.
-                    parser -> nextCoord = (int) strtol(ks_str(parser -> buffer) + prevIndex + 1, (char**) NULL, 10);
+                    parser -> nextCoord = (int) strtol(parser -> buffer -> s + prevIndex + 1, (char**) NULL, 10);
                 } else if (numTabs == 4) {
                     // The fifth field holds the ALT alleles. Each record has at least two alleles.
-                    //  Each additional allele is appended with a ','. For each ',' encountered,
+                    //  Each additional allele is appended withparser -> buffer -> s a ','. For each ',' encountered,
                     //  increment the number of alleles in the record.
-                    for (int j = prevIndex + 1; ks_str(parser -> buffer)[j] != '\t'; j++)
-                        if (ks_str(parser -> buffer)[j] == ',')
+                    for (int j = prevIndex + 1; parser -> buffer -> s[j] != '\t'; j++)
+                        if (parser -> buffer -> s[j] == ',')
                             numAlleles++;
-                    // If the number of alleles exceeds the maximum, drop record.
-                    if (numAlleles > MAX_NUM_ALLELES)
-                        isInSet = false;
                 } else if (numTabs > 8) {
                     // The ninth field and on holds the genotypes of the samples.
-                    l = parse_locus(ks_str(parser -> buffer) + prevIndex + 1, numAlleles);
+                    l = parse_locus(parser -> buffer -> s + prevIndex + 1, numAlleles);
                     // Increment each allele's count.
                     parser -> alleleCounts[LEFT_ALLELE(l)]++;
                     parser -> alleleCounts[RIGHT_ALLELE(l)]++;
@@ -138,10 +133,6 @@ void seek(VCFLocusParser_t* parser) {
 
         // Set the number of alleles at the locus.
         parser -> nextNumAlleles = numAlleles;
-
-        // If the record is not in the set, skip record.
-        if (!isInSet)
-            continue;
         
         // Calculate the number of missing genotypes present.
         afMissing = parser -> alleleCounts[numAlleles] / (2.0 * parser -> numSamples);
@@ -159,7 +150,9 @@ void seek(VCFLocusParser_t* parser) {
         }
 
         // Test that all thresholds are met.
-        if (parser -> dropMonomorphicSites && afMax == 1)
+        if (numAlleles > MAX_NUM_ALLELES)
+            continue;
+        else if (parser -> dropMonomorphicSites && afMax == 1)
             continue;
         else if (numAlleles == 2 && maf < parser -> maf)
             continue;
@@ -172,14 +165,17 @@ void seek(VCFLocusParser_t* parser) {
 
 }
 
-void get_next_locus(VCFLocusParser_t* parser, kstring_t* chrom, unsigned int* coord, int* numOfAlleles, Locus** locus) {
+void get_next_locus(VCFLocusParser_t* parser, char** chrom, unsigned int* coord, int* numOfAlleles, Locus** locus) {
     // If parser does not exist or EOF, leave arguments unchanged and return.
     if (parser == NULL || parser -> isEOF)
         return;
     
     // Move the primed read into the arguments.
-    if (parser -> nextChrom != chrom)
-        ks_overwrite(ks_str(parser -> nextChrom), chrom);
+    if (parser -> nextChrom != *chrom) {
+        if (*chrom != NULL)
+            free(*chrom);
+        *chrom = strdup(parser -> nextChrom);
+    }
     *coord = parser -> nextCoord;
     *numOfAlleles = parser -> nextNumAlleles;
     // We just swap array pointers, which is better than copying each element individually.
@@ -200,17 +196,63 @@ void destroy_vcf_locus_parser(VCFLocusParser_t* parser) {
     // Destroy the stream.
     ks_destroy(parser -> stream);
     // Free the file name.
-    destroy_kstring(parser -> fileName);
+    free(parser -> fileName);
     // Destroy the sample names.
     for (int i = 0; i < parser -> numSamples; i++)
-        destroy_kstring(parser -> sampleNames[i]);
+        if (parser -> sampleNames[i] != NULL)
+            free(parser -> sampleNames[i]);
     free(parser -> sampleNames);
     // Destroy the buffer.
-    destroy_kstring(parser -> buffer);
+    if (parser -> buffer != NULL) {
+        if (parser -> buffer -> s != NULL)
+            free(parser -> buffer -> s);
+        free(parser -> buffer);
+    }
     // Destroy the next chromosome string.
-    destroy_kstring(parser -> nextChrom);
+    if (parser -> nextChrom != NULL)
+        free(parser -> nextChrom);
     // Destroy the locus array.
     free(parser -> nextLocus);
     // Destroy the parser.
     free(parser);
 }
+
+// Used to test the parser.
+/*
+int main() {
+    
+    kstring_t* intervals = (kstring_t*) calloc(1, sizeof(kstring_t));
+    ks_overwrite("3", intervals);
+    VCFLocusParser_t* parser = init_vcf_locus_parser("./data/vcf_parser_test.vcf.gz", NULL, false, 0.4, 0.1, true);
+
+    printf("There are %d samples with the following names:\n", parser -> numSamples);
+    for (int i = 0; i < parser -> numSamples; i++)
+        printf("%s\n", ks_str(&(parser -> sampleNames[i])));
+    
+    kstring_t* chromosome = (kstring_t*) calloc(1, sizeof(kstring_t));
+    unsigned int position;
+    int numOfAlleles;
+    Locus* locus = (Locus*) calloc(parser -> numSamples, sizeof(Locus));
+
+    while(!parser -> isEOF) {
+
+        get_next_locus(parser, chromosome, &position, &numOfAlleles, &locus);
+        
+        printf("\n");
+        printf("Chromosome: %s\n", ks_str(chromosome));
+        printf("Position: %d\n", position);
+        printf("Num Alleles: %d\n", numOfAlleles);
+        printf("Genotypes:\n");
+        for (int i = 0; i < parser -> numSamples; i++)
+            printf("%x\n", locus[i]);
+        printf("\n");
+        
+    }
+
+    destroy_vcf_locus_parser(parser);
+    free(locus);
+    free(ks_str(chromosome)); free(chromosome);
+    free(ks_str(intervals)); free(intervals);
+    
+}
+*/
