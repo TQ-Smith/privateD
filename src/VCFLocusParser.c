@@ -7,78 +7,8 @@
 
 #include "VCFLocusParser.h"
 
-VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMissing, bool dropMonomorphicSites) {
-
-    // Open the GZ file.
-    gzFile file = gzopen(fileName, "r");
-
-    // If file does not exist or is not compressed using gzip, return NULL.
-    int errnum;
-    gzerror(file, &errnum);
-    if (errnum != Z_OK) {
-        return NULL;
-    }
-    
-    // Initialize the file stream.
-    kstream_t* stream = ks_init(file);
-    
-    // Initialize the buffer to read in from the stream.
-    kstring_t* buffer = calloc(1, sizeof(kstring_t));
-    
-    // Parse all the meta data in the VCF file.
-    int dret;
-    do {
-        ks_getuntil(stream, '\n', buffer, &dret);
-    } while (strncmp(buffer -> s, "#C", 2) != 0);
-    
-    // Count the number of samples in the header of the VCF file.
-    int numSamples = 0;
-    for (int i = 0; i < buffer -> l; i++)
-        if (buffer -> s[i] == '\t')
-            numSamples++;
-    numSamples -= 8;
-    
-    // Allocate the array to hold the sample names.
-    char** sampleNames = (char**) calloc(numSamples, sizeof(char*));
-    // Read in the sample names.
-    int numTabs = 0, prevIndex;
-    for (int i = 0; i <= buffer -> l; i++) {
-        if (i == buffer -> l || buffer -> s[i] == '\t') {
-            if (numTabs > 8)
-                sampleNames[numTabs - 9] = strndup(buffer -> s + prevIndex + 1, i - prevIndex - 1);
-            prevIndex = i;
-            numTabs++;
-        }
-    }
-    
-    // Allocate our structure and the memory for its fields.
-    VCFLocusParser_t* parser = (VCFLocusParser_t*) calloc(1, sizeof(VCFLocusParser_t));
-    parser -> fileName = strdup(fileName);
-    parser -> file = file;
-    parser -> stream = stream;
-    parser -> numSamples = numSamples;
-    parser -> sampleNames = sampleNames;
-    parser -> buffer = buffer;
-    parser -> isEOF = false;
-    parser -> nextLocus = (Locus*) calloc(numSamples, sizeof(Locus));
-
-    // Set fields from arguments.
-    parser -> maf = maf;
-    parser -> afMissing = afMissing;
-    parser -> dropMonomorphicSites = dropMonomorphicSites;
-    parser -> alleleCounts = calloc(MAX_NUM_ALLELES, sizeof(int));
-    for (int i = 0; i < MAX_NUM_ALLELES; i++)
-        parser -> alleleCounts[i] = 0;
-
-    // Prime the first record.
-    get_next_locus(parser, &(parser -> nextChrom), &(parser -> nextCoord), &(parser -> nextNumAlleles), &(parser -> nextLocus));
-    
-    // Return created parser.
-    return parser;
-}
-
 // I am not in love with how I wrote this, but it is sufficient for now.
-void seek(VCFLocusParser_t* parser) {
+bool seek(VCFLocusParser_t* parser) {
 
     int dret, numTabs, prevIndex, numAlleles;
     Locus l;
@@ -92,10 +22,8 @@ void seek(VCFLocusParser_t* parser) {
         ks_getuntil(parser -> stream, '\n', parser -> buffer, &dret);
 
         // If EOF or nothing was read in (for safety), set EOF flag and return.
-        if (ks_eof(parser -> stream) || parser -> buffer -> l == 0) {
-            parser -> isEOF = true;
-            return;
-        }
+        if (isEOF(parser))
+            return false;
 
         // This is alittle clunky, but I think it is faster than splitting on '\t'.
         numTabs = 0, prevIndex = 0, numAlleles = 2;
@@ -159,23 +87,90 @@ void seek(VCFLocusParser_t* parser) {
         else if (afMissing > parser -> afMissing)
             continue;
         else 
-            return;
+            break;
 
     }
+
+    return true;
 
 }
 
-void get_next_locus(VCFLocusParser_t* parser, char** chrom, unsigned int* coord, int* numOfAlleles, Locus** locus) {
-    // If parser does not exist or EOF, leave arguments unchanged and return.
-    if (parser == NULL || parser -> isEOF)
-        return;
-    
-    // Move the primed read into the arguments.
-    if (parser -> nextChrom != *chrom) {
-        if (*chrom != NULL)
-            free(*chrom);
-        *chrom = strdup(parser -> nextChrom);
+VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMissing, bool dropMonomorphicSites) {
+
+    // Open the GZ file.
+    gzFile file = gzopen(fileName, "r");
+
+    // If file does not exist or is not compressed using gzip, return NULL.
+    int errnum;
+    gzerror(file, &errnum);
+    if (errnum != Z_OK) {
+        return NULL;
     }
+    
+    // Initialize the file stream.
+    kstream_t* stream = ks_init(file);
+    
+    // Initialize the buffer to read in from the stream.
+    kstring_t* buffer = calloc(1, sizeof(kstring_t));
+    
+    // Parse all the meta data in the VCF file.
+    int dret;
+    do {
+        ks_getuntil(stream, '\n', buffer, &dret);
+    } while (strncmp(buffer -> s, "#C", 2) != 0);
+    
+    // Count the number of samples in the header of the VCF file.
+    int numSamples = 0;
+    for (int i = 0; i < buffer -> l; i++)
+        if (buffer -> s[i] == '\t')
+            numSamples++;
+    numSamples -= 8;
+    
+    // Allocate the array to hold the sample names.
+    char** sampleNames = (char**) calloc(numSamples, sizeof(char*));
+    // Read in the sample names.
+    int numTabs = 0, prevIndex;
+    for (int i = 0; i <= buffer -> l; i++) {
+        if (i == buffer -> l || buffer -> s[i] == '\t') {
+            if (numTabs > 8)
+                sampleNames[numTabs - 9] = strndup(buffer -> s + prevIndex + 1, i - prevIndex - 1);
+            prevIndex = i;
+            numTabs++;
+        }
+    }
+    
+    // Allocate our structure and the memory for its fields.
+    VCFLocusParser_t* parser = (VCFLocusParser_t*) calloc(1, sizeof(VCFLocusParser_t));
+    parser -> fileName = strdup(fileName);
+    parser -> file = file;
+    parser -> stream = stream;
+    parser -> numSamples = numSamples;
+    parser -> sampleNames = sampleNames;
+    parser -> buffer = buffer;
+    parser -> nextChrom = NULL;
+    parser -> nextLocus = (Locus*) calloc(numSamples, sizeof(Locus));
+
+    // Set fields from arguments.
+    parser -> maf = maf;
+    parser -> afMissing = afMissing;
+    parser -> dropMonomorphicSites = dropMonomorphicSites;
+    parser -> alleleCounts = calloc(MAX_NUM_ALLELES, sizeof(int));
+    for (int i = 0; i < MAX_NUM_ALLELES; i++)
+        parser -> alleleCounts[i] = 0;
+
+    // Prime the first record.
+    seek(parser);
+    
+    // Return created parser.
+    return parser;
+}
+
+bool get_next_locus(VCFLocusParser_t* parser, char** chrom, unsigned int* coord, int* numOfAlleles, Locus** locus) {
+    
+    // Move primed read into arguments.
+    if (*chrom != NULL)
+        free(*chrom);
+    *chrom = strdup(parser -> nextChrom);
     *coord = parser -> nextCoord;
     *numOfAlleles = parser -> nextNumAlleles;
     // We just swap array pointers, which is better than copying each element individually.
@@ -184,13 +179,23 @@ void get_next_locus(VCFLocusParser_t* parser, char** chrom, unsigned int* coord,
     parser -> nextLocus = temp;
 
     // Prime the next read.
-    seek(parser);
+    return seek(parser);
+}
+
+bool isEOF(VCFLocusParser_t* parser) {
+    return ks_eof(parser -> stream) || parser -> buffer -> l == 0;
 }
 
 
 void destroy_vcf_locus_parser(VCFLocusParser_t* parser) {
     if (parser == NULL)
         return;
+    // Destroy the buffer.
+    if (parser -> buffer != NULL) {
+        if (parser -> buffer -> s != NULL)
+            free(parser -> buffer -> s);
+        free(parser -> buffer);
+    }
     // Close the file being read in.
     gzclose(parser -> file);
     // Destroy the stream.
@@ -202,17 +207,13 @@ void destroy_vcf_locus_parser(VCFLocusParser_t* parser) {
         if (parser -> sampleNames[i] != NULL)
             free(parser -> sampleNames[i]);
     free(parser -> sampleNames);
-    // Destroy the buffer.
-    if (parser -> buffer != NULL) {
-        if (parser -> buffer -> s != NULL)
-            free(parser -> buffer -> s);
-        free(parser -> buffer);
-    }
     // Destroy the next chromosome string.
     if (parser -> nextChrom != NULL)
         free(parser -> nextChrom);
     // Destroy the locus array.
     free(parser -> nextLocus);
+    // Free allele counts.
+    free(parser -> alleleCounts);
     // Destroy the parser.
     free(parser);
 }

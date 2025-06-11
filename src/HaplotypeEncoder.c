@@ -130,13 +130,8 @@ void add_locus(HaplotypeEncoder_t* encoder, int numAlleles) {
 bool get_next_haplotype(VCFLocusParser_t* parser, HaplotypeEncoder_t* encoder, int HAP_SIZE) {
 
     // If the end of the VCF file has been reached, we cannot get another haplotype.
-    if (parser -> isEOF)
+    if (isEOF(parser))
         return false;
-    
-    // Set chromosome and start coordinate of the haplotype.
-    if (encoder -> chrom != NULL) 
-        free(encoder -> chrom);
-    encoder -> chrom = strdup(parser -> nextChrom);
 
     encoder -> startCoord = parser -> nextCoord;
 
@@ -154,9 +149,10 @@ bool get_next_haplotype(VCFLocusParser_t* parser, HaplotypeEncoder_t* encoder, i
 
     // While the end of VCF file has not been reached the maximum haplotype size has not been reached
     //  and the current locus is on the same chromosome as the next locus.
-    while(!(parser -> isEOF) && (encoder -> numLoci < HAP_SIZE) && isSameChrom) {
+    bool isEOF = false;
+    while(!isEOF && (encoder -> numLoci < HAP_SIZE) && isSameChrom) {
         // Get the next locus from the VCF file.
-        get_next_locus(parser, &(encoder -> chrom), &(encoder -> endCoord), &numAlleles, &(encoder -> locus));
+        isEOF = get_next_locus(parser, &(encoder -> chrom), &(encoder -> endCoord), &numAlleles, &(encoder -> locus));
 
         // Extend the haplotypes.
         add_locus(encoder, numAlleles);
@@ -164,7 +160,7 @@ bool get_next_haplotype(VCFLocusParser_t* parser, HaplotypeEncoder_t* encoder, i
         encoder -> numLoci++;
     }
 
-    return !(parser -> isEOF) && encoder -> numLoci == HAP_SIZE && isSameChrom;
+    return isSameChrom;
 
 }
 

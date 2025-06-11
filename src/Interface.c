@@ -41,23 +41,23 @@ static ko_longopt_t long_options[] = {
 
 int check_configuration(PrivateDConfig_t* config) {
     if (config -> sampleSize < 1) {
-        fprintf(stderr, "-g must be given an integer >= 1. Exiting!\n");
+        fprintf(stderr, "--sampleSize must be given an integer >= 1. Exiting!\n");
         return -1;
     }
     if (config -> blockSize < 1) {
-        fprintf(stderr, "-b must be given an integer >= 1. Exiting!\n");
+        fprintf(stderr, "--blockSize must be given an integer >= 1. Exiting!\n");
         return -1;
     }
     if (config -> haplotypeSize < 1) {
-        fprintf(stderr, "-h must be given an integer >= 1. Exiting!\n");
+        fprintf(stderr, "-haplotypeSize must be given an integer >= 1. Exiting!\n");
         return -1;
     }
     if (config -> MAF < 0 || config -> MAF >= 1) {
-        fprintf(stderr, "-m must be given a real number in [0, 1). Exiting!\n");
+        fprintf(stderr, "-MAF must be given a real number in [0, 1). Exiting!\n");
         return -1;
     }
-    if (config -> missingAF < 0 || config -> missingAF >= 1) {
-        fprintf(stderr, "-n must be given a real number in [0, 1). Exiting!\n");
+    if (config -> missingAF <= 0 || config -> missingAF > 1) {
+        fprintf(stderr, "-missingAF must be given a real number in (0, 1]. Exiting!\n");
         return -1;
     }
     if (config -> inputFileName != NULL && access(config -> inputFileName, F_OK) != 0) {
@@ -115,7 +115,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 
     config -> inputFileName = strdup(argv[options.ind]);
     config -> samplesToPopFileName = strdup(argv[options.ind + 1]);
-    config -> threePopList = strdup(argv[options.ind + 1]);
+    config -> threePopList = strdup(argv[options.ind + 2]);
 
     if (check_configuration(config) != 0) {
         destroy_privated_config(config);

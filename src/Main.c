@@ -15,7 +15,7 @@
 KHASH_MAP_INIT_STR(str, int)
 
 int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName, char* threePopList) {
-
+    
     // Check that three population names were supplied.
     int n = 0;
     for (int i = 0; i < strlen(threePopList); i++)
@@ -125,14 +125,13 @@ int main (int argc, char *argv[]) {
         return -1;
     }
 
-    int maxNumHaps = 0;
+    int numSamples = 0;
     for (int i = 0; i < vcfFile -> numSamples; i++)
         if (samplesToLabel[i] == -1)
-            maxNumHaps++;
-    maxNumHaps *= 2;
+            numSamples++;
 
-    if (config -> sampleSize > maxNumHaps) {
-        fprintf(stderr, "--sampleSize exceeds the number of chromosomes in the VCF. Exiting!\n");
+    if (config -> sampleSize > 2 * numSamples) {
+        fprintf(stderr, "--sampleSize exceeds the number of lineages in the VCF. Exiting!\n");
         free(samplesToLabel);
         destroy_privated_config(config);
         destroy_vcf_locus_parser(vcfFile);
@@ -140,11 +139,19 @@ int main (int argc, char *argv[]) {
         return -1;
     }
 
+    BlockList_t* blocks = privateD(vcfFile, encoder, samplesToLabel, numSamples, config -> sampleSize, config -> blockSize, config -> haplotypeSize);
+
+    Block_t* temp = blocks -> head;
+    for (int i = 0; i < blocks -> numBlocks; i++) {
+        printf("Block %d on %s starts at %d, contains %d haps, and ends at %d.\n", i + 1, temp -> chrom, temp -> startCoordinate, temp -> numHaps, temp -> endCoordinate);
+        temp = temp -> next;
+    }
 
     free(samplesToLabel);
     destroy_privated_config(config);
     destroy_vcf_locus_parser(vcfFile);
     destroy_haplotype_encoder(encoder);
+    destroy_block_list(blocks);
 
     return 0;
 }

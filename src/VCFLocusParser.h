@@ -30,7 +30,6 @@ typedef struct {
     kstream_t* stream;
     // A buffer to hold a line of the VCF parser from the stream.
     kstring_t* buffer;
-    bool isEOF;
 
     // Number of samples in the VCF file.
     int numSamples;
@@ -73,8 +72,11 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
 //  unsigned int* coord -> Sets the position of the read-in record.
 //  int* numOfAlleles -> Sets the number of alleles at the read-in record.
 //  Locus** genos -> Sets the array of the samples' genotypes at the read-in record.
-// Returns: void. Note: when EOF is set, passed arguments are unchanged.
-void get_next_locus(VCFLocusParser_t* parser, char** chrom, unsigned int* coord, int* numOfAlleles, Locus** genos);
+// Returns: bool, True is another record exists and False otherwise.
+bool get_next_locus(VCFLocusParser_t* parser, char** chrom, unsigned int* coord, int* numOfAlleles, Locus** genos);
+
+// Checks if stream has reached end of the VCF file.
+bool isEOF(VCFLocusParser_t* parser);
 
 // Free all the memory allocated to a VCFLocusParser_t.
 // Accepts:

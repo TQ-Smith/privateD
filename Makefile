@@ -16,17 +16,17 @@ bin/privateD: lib src
 .PHONY: src
 src: src/Main.o 
 
-src/Main.o: src/Interface.o src/HaplotypeEncoder.o # src/PrivateD.o
+src/Main.o: src/Interface.o src/HaplotypeEncoder.o src/PrivateD.o
 	$(CC) $(CFLAGS) src/Main.c -o src/Main.o
 
 src/Interface.o:
 	$(CC) $(CFLAGS) src/Interface.c -o src/Interface.o
 
-#src/PrivateD.o: src/BlockList.o
-#	$(CC) $(CFLAGS) src/PrivateD.c -o src/PrivateD.o
+src/PrivateD.o: src/BlockList.o
+	$(CC) $(CFLAGS) src/PrivateD.c -o src/PrivateD.o
 
-#src/BlockList.o:
-#	$(CC) $(CFLAGS) src/BlockList.c -o src/BlockList.o
+src/BlockList.o:
+	$(CC) $(CFLAGS) src/BlockList.c -o src/BlockList.o
 
 src/HaplotypeEncoder.o: src/VCFLocusParser.o
 	$(CC) $(CFLAGS) src/HaplotypeEncoder.c -o src/HaplotypeEncoder.o
