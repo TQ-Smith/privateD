@@ -5,9 +5,8 @@
 // Principal Investigator: Dr. Zachary A. Szpiech
 // Purpose: Compute privateD with weighted block jackknife.
 
-#include <math.h>
 #include "PrivateD.h"
-#include "Matrix.h"
+#include <math.h>
 #include <stdio.h>
 
 /*
@@ -78,54 +77,15 @@ int accumulate_counts(HaplotypeEncoder_t* encoder, int* sampleIndices, int* samp
     return numUniqueHaps;
 
 }
-
-Block_t* get_next_block(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, int* sampleIndices, int* samplesToLabel, int** hapCounts, int numSamplesInPops, int g, int blockSize, int h, int* startOfNextBlock) {
-
-    // No block to return if end of file reached.
-    if (vcfFile -> isEOF)
-        return NULL;
-
-    // Create our block.
-    Block_t* block = init_block(ks_str(vcfFile -> nextChrom), vcfFile -> nextCoord, g);
-    if (*startOfNextBlock == 1)
-        block -> blockNumOnChrom = 1;
-    else 
-        block -> blockNumOnChrom++;
-
-    // Find start of the block the next record is in.
-    if (*startOfNextBlock < vcfFile -> nextCoord)
-        *startOfNextBlock = (int) ((vcfFile -> nextCoord - 1) / blockSize) * blockSize + 1;
-    
-    // End of the current block.
-    int endOfBlock = *startOfNextBlock + blockSize - 1;
-
-    // While we read in records within the block.
-    bool isOnSameChrom = true;
-    while (isOnSameChrom && vcfFile -> nextCoord <= endOfBlock) {
-        isOnSameChrom = get_next_haplotype(vcfFile, encoder, h);
-
-        // Create table of haplotype counts.
-        int numUniqueHaps = accumulate_counts(encoder, sampleIndices, samplesToLabel, hapCounts, numSamplesInPops);
-
-        // Calculate privateD for locus.
-        locus_privateD(block, hapCounts, numUniqueHaps, g);
-
-        block -> numHaps++;
-    }
-
-    block -> endCoordinate = encoder -> endCoord;
-
-    // Set the start position of the next block.
-    if (!isOnSameChrom)
-        *startOfNextBlock = 1;
-    else
-        *startOfNextBlock = endOfBlock + 1;
-
-    // Return the block.
-    return block;
-
-}
 */
+
+void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int G) {
+ 
+}
+
+int accumulate_counts(HaplotypeEncoder_t* encoder, int haplotypeSize, int* samplesToLabel, int** hapCounts, int numSamples) {
+    return 0;
+}
 
 Block_t* get_next_block(
     VCFLocusParser_t* vcfFile, 
@@ -135,7 +95,8 @@ Block_t* get_next_block(
     int sampleSize, 
     int blockSize, 
     int haplotypeSize,
-    int endOfBlock
+    int endOfBlock,
+    int** hapCounts
 ) {
 
     if (isEOF(vcfFile))
@@ -146,6 +107,8 @@ Block_t* get_next_block(
     bool isOnSameChrom = true;
     while (isOnSameChrom && vcfFile -> nextCoord <= endOfBlock) {
         isOnSameChrom = get_next_haplotype(vcfFile, encoder, haplotypeSize);
+        int numUniqueHaps = accumulate_counts(encoder, haplotypeSize, samplesToLabel, hapCounts, numSamples);
+        locus_privateD(block, hapCounts, numUniqueHaps, sampleSize);
         block -> numHaps++;
     }
     block -> endCoordinate = encoder -> endCoord;
@@ -158,10 +121,14 @@ BlockList_t* privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, in
 
     BlockList_t* globalList = init_block_list(sampleSize);
 
-    while (true) {
+    int** hapCounts = (int**) calloc(3, sizeof(int*));
+    hapCounts[0] = (int*) calloc(2 * numSamples + 1, sizeof(int));
+    hapCounts[1] = (int*) calloc(2 * numSamples + 1, sizeof(int));
+    hapCounts[2] = (int*) calloc(2 * numSamples + 1, sizeof(int));
 
+    while (true) {
         int endOfBlock = ((int) ((vcfFile -> nextCoord - 1) / blockSize) + 1) * blockSize - 1;
-        Block_t* temp = get_next_block(vcfFile, encoder, samplesToLabel, numSamples, sampleSize, blockSize, haplotypeSize, endOfBlock);
+        Block_t* temp = get_next_block(vcfFile, encoder, samplesToLabel, numSamples, sampleSize, blockSize, haplotypeSize, endOfBlock, hapCounts);
         if (temp == NULL)
             break;
 
@@ -171,6 +138,9 @@ BlockList_t* privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, in
             globalList -> rarefactCounts[i].denom += temp -> rarefactCounts[i].denom;
         }
     }
+
+    free(hapCounts[0]); free(hapCounts[1]); free(hapCounts[2]);
+    free(hapCounts);
 
     return globalList;
 
