@@ -79,12 +79,58 @@ int accumulate_counts(HaplotypeEncoder_t* encoder, int* sampleIndices, int* samp
 }
 */
 
-void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int G) {
+void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int sampleSize) {
  
 }
 
 int accumulate_counts(HaplotypeEncoder_t* encoder, int haplotypeSize, int* samplesToLabel, int** hapCounts, int numSamples) {
-    return 0;
+
+    int numUniqueHaps = 0;
+
+    khiter_t k;
+    int ret;
+
+    for (int i = 0; i < encoder -> numSamples; i++) {
+        if (samplesToLabel[i] != -1) {
+            k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].left);
+            if (k == kh_end(encoder -> labelMap))
+                k = kh_put(haplotype, encoder -> labelMap, encoder -> genotypes[i].left, &ret);
+            kh_value(encoder -> labelMap, k) = MISSING;
+            k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].right);
+            if (k == kh_end(encoder -> labelMap)) 
+                k = kh_put(haplotype, encoder -> labelMap, encoder -> genotypes[i].right, &ret);
+            kh_value(encoder -> labelMap, k) = MISSING;
+        }
+    }
+
+    hapCounts[0][0] = hapCounts[0][1] = hapCounts[0][2] = 0;
+
+    for (int i = 0; i < encoder -> numSamples; i++) {
+        if (samplesToLabel[i] != -1) {
+            if (encoder -> genotypes[i].left != MISSING) { 
+                k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].left);
+                if (kh_value(encoder -> labelMap, k) == MISSING) {
+                    kh_value(encoder -> labelMap, k) = numUniqueHaps;
+                    hapCounts[0][numUniqueHaps + 1] = hapCounts[1][numUniqueHaps + 1] = hapCounts[2][numUniqueHaps + 1] = 0;
+                    numUniqueHaps++;
+                }
+                hapCounts[samplesToLabel[i] - 1][kh_value(encoder -> labelMap, k) + 1]++;
+                hapCounts[samplesToLabel[i] - 1][0]++;
+            }
+            if (encoder -> genotypes[i].right != MISSING) { 
+                k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].right);
+                if (kh_value(encoder -> labelMap, k) == MISSING) {
+                    kh_value(encoder -> labelMap, k) = numUniqueHaps;
+                    hapCounts[0][numUniqueHaps + 1] = hapCounts[1][numUniqueHaps + 1] = hapCounts[2][numUniqueHaps + 1] = 0;
+                    numUniqueHaps++;
+                }
+                hapCounts[samplesToLabel[i] - 1][kh_value(encoder -> labelMap, k) + 1]++;
+                hapCounts[samplesToLabel[i] - 1][0]++;
+            }
+        }
+    }
+
+    return numUniqueHaps;
 }
 
 Block_t* get_next_block(
