@@ -2,7 +2,7 @@
 
 ## Manual
 
-The manual can be found at [https://github.com/TQ-Smith/privateD/wiki/privateD-Manual].
+The manual can be found at [https://github.com/TQ-Smith/privateD/wiki].
 
 ## License
 
