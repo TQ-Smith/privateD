@@ -12,22 +12,19 @@
 #include "HaplotypeEncoder.h"
 #include "BlockList.h"
 
-// Accumulate privateD counts for each block along the genome.
+// Partition the genome into blocks. Calculate privateD in each block.
 // Accepts:
-//  VCFLocusParser_t* vcfFile -> The VCF to read.
-//  HaplotypeEncoder_t* encoder -> The encoder used for haplotypes.
-//  int* samplesToLabel -> Associates the sample with a population.
-//  int maxNumOfHaps -> The maximum number of possible haplotypes.
-//  int g -> Ranges from 1 to g for rarefaction sample size.
-//  int blockSize -> The block size used in the jackknife.
-//  int h -> The haplotype size.
-// Returns: BlockList_t*, a list of the counts for all the blocks along the genome.
-BlockList_t* privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, int* samplesToLabel, int maxNumOfHaps, int g, int blockSize, int h);
+//  VCFLocusParsder_t* vcfFile -> The VCF file to parse.
+//  HaplotypeEncoder_t* encoder -> Used to encode haplotypes from the VCF files.
+//  int* samplesToLabels -> Associate the index of a sample with its population.
+//  int numSamples -> The total number of samples in the three populations.
+//  int samplesSize -> The maximum sample size.
+//  int blockSize -> The block size in base-pairs of our genome.
+//  int haplotypeSize -> The size of a haplotype in loci.
+// Returns: BlockList_t*, the list of genome blocks.
+BlockList_t* privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, int* samplesToLabel, int numSamples, int sampleSize, int blockSize, int haplotypeSize);
 
-// Calculates jackknife for all blocks. Results are stored in list.
-// Accetps:
-//  BlockList_t* blockList -> The list of blocks.
-// Returns: void.
+// Compute the weighted jackknife pvalues for global and all blocks.
 void weighted_block_jackknife(BlockList_t* blockList);
 
 #endif

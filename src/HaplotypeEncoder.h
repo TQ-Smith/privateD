@@ -12,7 +12,7 @@
 
 // Initialize klib hash table.
 //  Used to relabel haplotype encodings.
-#include "../lib/khash.h"
+#include "khash.h"
 KHASH_MAP_INIT_INT(haplotype, unsigned long)
 
 // A haplotype is encoded as an unsigned long.
@@ -48,7 +48,7 @@ typedef struct {
     Genotype_t* genotypes;
 
     // The chromsome of the current haplotype.
-    kstring_t* chrom;
+    char* chrom;
     // The start and end coordinates of the current haplotype.
     unsigned int startCoord;
     unsigned int endCoord;

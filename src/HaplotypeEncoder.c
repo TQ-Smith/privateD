@@ -16,7 +16,7 @@ HaplotypeEncoder_t* init_haplotype_encoder(int numSamples) {
     encoder -> numSamples = numSamples;
     encoder -> locus = (Locus*) calloc(numSamples, sizeof(Locus));
     encoder -> genotypes = (Genotype_t*) calloc(numSamples, sizeof(Genotype_t));
-    encoder -> chrom = init_kstring(NULL);
+    encoder -> chrom = NULL;
     encoder -> labelMap = kh_init(haplotype);
     // The tree has one node, which corresponds to the empty string.
     encoder -> numLeaves = 1;
@@ -130,11 +130,9 @@ void add_locus(HaplotypeEncoder_t* encoder, int numAlleles) {
 bool get_next_haplotype(VCFLocusParser_t* parser, HaplotypeEncoder_t* encoder, int HAP_SIZE) {
 
     // If the end of the VCF file has been reached, we cannot get another haplotype.
-    if (parser -> isEOF)
+    if (isEOF(parser))
         return false;
-    
-    // Set chromosome and start coordinate of the haplotype.
-    ks_overwrite(ks_str(parser -> nextChrom), encoder -> chrom);
+
     encoder -> startCoord = parser -> nextCoord;
 
     // Reset the tree.
@@ -151,16 +149,17 @@ bool get_next_haplotype(VCFLocusParser_t* parser, HaplotypeEncoder_t* encoder, i
 
     // While the end of VCF file has not been reached the maximum haplotype size has not been reached
     //  and the current locus is on the same chromosome as the next locus.
-    while(!(parser -> isEOF) && (encoder -> numLoci < HAP_SIZE) && isSameChrom) {
+    bool isEOF = false;
+    while(!isEOF && (encoder -> numLoci < HAP_SIZE) && isSameChrom) {
         // Get the next locus from the VCF file.
-        get_next_locus(parser, encoder -> chrom, &(encoder -> endCoord), &numAlleles, &(encoder -> locus));
+        isEOF = get_next_locus(parser, &(encoder -> chrom), &(encoder -> endCoord), &numAlleles, &(encoder -> locus));
         // Extend the haplotypes.
         add_locus(encoder, numAlleles);
-        isSameChrom = strcmp(ks_str(encoder -> chrom), ks_str(parser -> nextChrom)) == 0;
+        isSameChrom = strcmp(encoder -> chrom, parser -> nextChrom) == 0;
         encoder -> numLoci++;
     }
 
-    return !(parser -> isEOF) && encoder -> numLoci == HAP_SIZE && isSameChrom;
+    return !isEOF && isSameChrom;
 
 }
 
@@ -169,15 +168,17 @@ void destroy_haplotype_encoder(HaplotypeEncoder_t* encoder) {
         return;
     free(encoder -> locus);
     free(encoder -> genotypes);
-    destroy_kstring(encoder -> chrom);
+    if (encoder -> chrom != NULL) 
+        free(encoder -> chrom);
     kh_destroy(haplotype, encoder -> labelMap);
     free(encoder);
 }
 
 // Used to test the haplotype encoder.
 
+/*
 void print_encoder_info(HaplotypeEncoder_t* encoder) {
-    printf("Chromosome: %s\n", ks_str(encoder -> chrom));
+    printf("Chromosome: %s\n", encoder -> chrom);
     printf("Start locus: %d\n", encoder -> startCoord);
     printf("End locus: %d\n", encoder -> endCoord);
     printf("Number of loci: %d\n", encoder -> numLoci);
@@ -186,7 +187,6 @@ void print_encoder_info(HaplotypeEncoder_t* encoder) {
         printf("Sample %d -> %ld/%ld\n", i + 1, encoder -> genotypes[i].left, encoder -> genotypes[i].right);
 }
 
-/*
 int main() {
 
     VCFLocusParser_t* parser = init_vcf_locus_parser("./data/haplotype_encoder_test.vcf.gz", NULL, false, 0, 1, false);

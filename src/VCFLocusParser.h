@@ -1,4 +1,3 @@
-
 // File: VCFLocusParser.h
 // Date: 6 May 2024
 // Author: T. Quinn Smith
@@ -8,43 +7,34 @@
 #ifndef _VCF_LOCUS_PARSER_H_
 #define _VCF_LOCUS_PARSER_H_
 
+#include <zlib.h>
+#include "kseq.h"
 #include <stdbool.h>
-#include "../lib/zlib.h"
-#include "../lib/kstring.h"
-#include "../lib/kseq.h"
 
 // We use kseq as a stream to read in GZ files.
 #define BUFFER_SIZE 4096
 KSTREAM_INIT(gzFile, gzread, BUFFER_SIZE)
 
-// We define a sample's genotype as a char.
-//  The most significant 4-bits are the left allele, 
-//  and the least significant 4-bits are the right allele.
-//  NOTE: If a locus has N alleles labeled 0,..,N - 1, then the
-//  missing allele is encoded as N. Thus, there is a maximum of 2^16
-//  alleles at each locus. This can be easily modified. Since this number
-//  is large, we artifically set the maximum number of alleles at a locus to 64.
 typedef unsigned int Locus;
 #define LEFT_ALLELE(a) (a >> 16)
 #define RIGHT_ALLELE(a) (a & 0x0000FFFF)
-#define MAX_NUM_ALLELES 64
+#define MAX_NUM_ALLELES 1024
 
 // Our structure that represents a VCFLocusParser.
 typedef struct {
     // The name of the VCF file.
-    kstring_t* fileName;
+    char* fileName;
     // The GZ file. Note: Seamlessly works with uncompressed files too.
     gzFile file;
     // The stream to read in the GZ file.
     kstream_t* stream;
     // A buffer to hold a line of the VCF parser from the stream.
     kstring_t* buffer;
-    bool isEOF;
 
     // Number of samples in the VCF file.
     int numSamples;
-    // An array of kstring_t to hold the names of each sample.
-    kstring_t** sampleNames;
+    // An array to hold the names of each sample.
+    char** sampleNames;
 
     // Flag to drop monomorphic sites.
     bool dropMonomorphicSites;
@@ -54,11 +44,11 @@ typedef struct {
     double afMissing;
     // An array to hold the number of each allele at a locus.
     //  Used in maf calculation.
-    int alleleCounts[MAX_NUM_ALLELES];
+    int* alleleCounts;
 
     // For convenience, we implement a priming read/peak operation.
     //  This allows us to easily test if the next record belongs to a different chromosome.
-    kstring_t* nextChrom;
+    char* nextChrom;
     unsigned int nextCoord;
     int nextNumAlleles;
     // Array that holds the genotypes for each of the samples.
@@ -78,12 +68,15 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
 // Get the next locus from a parser.
 // Accepts:
 //  VCFLocusParser_t* parser -> The parser structure to read the VCF file.
-//  kstring_t* chrom -> Sets the chromosome of the read-in record.
+//  char** chrom -> Sets the chromosome of the read-in record.
 //  unsigned int* coord -> Sets the position of the read-in record.
 //  int* numOfAlleles -> Sets the number of alleles at the read-in record.
 //  Locus** genos -> Sets the array of the samples' genotypes at the read-in record.
-// Returns: void. Note: when EOF is set, passed arguments are unchanged.
-void get_next_locus(VCFLocusParser_t* parser, kstring_t* chrom, unsigned int* coord, int* numOfAlleles, Locus** genos);
+// Returns: bool, True is another record exists and False otherwise.
+bool get_next_locus(VCFLocusParser_t* parser, char** chrom, unsigned int* coord, int* numOfAlleles, Locus** genos);
+
+// Checks if stream has reached end of the VCF file.
+bool isEOF(VCFLocusParser_t* parser);
 
 // Free all the memory allocated to a VCFLocusParser_t.
 // Accepts:

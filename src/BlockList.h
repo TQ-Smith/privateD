@@ -24,8 +24,6 @@ typedef struct Block {
     int startCoordinate;
     int endCoordinate;
     int numHaps;
-    int g;
-    // An array of size g to hold counts.
     Counts_t* rarefactCounts;
     struct Block* next;
 } Block_t;
@@ -33,36 +31,34 @@ typedef struct Block {
 // A list of blocks.
 typedef struct BlockList {
     int numSamples;
-    int g;
-    // Array of size g. Holds global counts.
+    int sampleSize;
     Counts_t* rarefactCounts;
-    // Array to hold standard errors from jackknife.
-    double* stderrs;
     int numBlocks;
-    // Head and tail pointer for our linked list.
     Block_t* head;
     Block_t* tail;
+    // Our standard errors for each g computed by jackknife.
+    double* stderrs;
 } BlockList_t;
 
 // Creates a list of blocks.
 // Accepts:
-//  int g -> The standardized samples size. Redundant but good to track.
+//  int sampleSize -> The standardized samples size. Redundant but good to track.
 // Returns: An empty block list.
-BlockList_t* init_block_list(int g);
+BlockList_t* init_block_list(int sampleSize);
 
 // Creates a block.
 // Acccepts:
 //  char* chrom -> The chromosome the block is on.
 //  int startCoordinate -> The coordinate of the firs record in the block.
-//  int g -> The standardized samples size.
-Block_t* init_block(char* chrom, int startCoordinate, int g);
+//  int sampleSize -> The standardized samples size.
+Block_t* init_block(char* chrom, int startCoordinate, int sampleSize);
 
 // Adds a block to the block list.
 // Accepts:
 //  BlockList_t* blockList -> The list to add the block to.
 //  Block_t* block -> Adds the block to the end of the list.
 // Returns: void.
-void appendBlock(BlockList_t* blockList, Block_t* block);
+void append_block(BlockList_t* blockList, Block_t* block);
 
 // Frees the memory occupied by the block list.
 // Accepts:

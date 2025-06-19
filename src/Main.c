@@ -1,64 +1,45 @@
 
 // File: Main.c
 // Date: 23 December 2024
-// Version 1: 6 January 2025
+// Version 1: 19 June 2025
 // Author: T. Quinn Smith
 // Principal Investigator: Dr. Zachary A. Szpiech
 // Purpose: Three population introgression test using private allelic richness.
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+#include "Interface.h"
 #include "VCFLocusParser.h"
 #include "HaplotypeEncoder.h"
 #include "PrivateD.h"
-#include "../lib/ketopt.h"
-#include "../lib/kstring.h"
 
 // Create a string-to-string hash table.
 KHASH_MAP_INIT_STR(str, int)
 
-// Create an integer array associating sample index to population label.
-// Accepts:
-//  kstring_t** sampleNames -> The sample names from the VCF file.
-//  int numSamples -> The number of samples in the VCF file.
-//  char* sampleToPopFileName -> The file associating samples to populations.
-//  char* popList -> List of the three populations we are testing.
-// Returns: int*, An array associating the sample index to the population they belong from popList.
-//                  Labels are 1,2,3 for the first, second, third population in popList. -1 for not in popList.
-int* labelSamples(kstring_t** sampleNames, int numSamples, char* sampleToPopFileName, char* popList) {
-
+int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName, char* threePopList) {
+    
     // Check that three population names were supplied.
     int n = 0;
-    for (int i = 0; i < strlen(popList); i++)
-        if (popList[i] == ',')
+    for (int i = 0; i < strlen(threePopList); i++)
+        if (threePopList[i] == ',')
             n++;
-    if (n != 2) {
-        printf("<pop1>,<pop2>,<pop3> must contain three populations. Exiting!\n");
+    if (n != 2)
         return NULL;
-    }
 
     // The three population names.
-    char* tok;
-    char* first;
-    char* second;
-    char* third;
+    char* tok = NULL;
+    char* first = NULL;
+    char* second = NULL;
+    char* third = NULL;
 
     // Get the three population names.
-    tok = strtok(popList, ",");
+    tok = strtok(threePopList, ",");
     first = strdup(tok);
     tok = strtok(NULL, ",");
     second = strdup(tok);
     tok = strtok(NULL, ",");
     third = strdup(tok);
 
-    // Create the file buffer to read in <sampleToPop.tsv>.
-    FILE* sampleToPopFile = fopen(sampleToPopFileName, "r");
-    if (sampleToPopFile == NULL) {
-        printf("<sampleToPop.tsv> does not exist. Exiting!\n");
-        return NULL;
-    }
-    
+    FILE* samplesToPopFile = fopen(samplesToPopFileName, "r");
+
     // Used for reading in sampleToPopFile.
     char sampleName[512];
     char popName[512];
@@ -68,22 +49,20 @@ int* labelSamples(kstring_t** sampleNames, int numSamples, char* sampleToPopFile
     khint_t k;
     h = kh_init(str);
 
-    int numFields = 0;
-
     // Parse <sampleToPop.tsv>.
     int absent;
-    while ( !feof(sampleToPopFile) ) {
+    while (!feof(samplesToPopFile)) {
 
-        numFields = fscanf(sampleToPopFile, "%s\t%s\n", sampleName, popName);
+        int numFields = fscanf(samplesToPopFile, "%s\t%s\n", sampleName, popName);
 
-        // Invalid file. Free memory and return.
+        // If invalid formatting, free all memory and exit.
         if (numFields != 2) {
+            free(first); free(second); free(third);
+            fclose(samplesToPopFile);
             for (k = 0; k < kh_end(h); k++)
                 if (kh_exist(h, k))
                     free((char*) kh_key(h, k));
             kh_destroy(str, h);
-            fclose(sampleToPopFile);
-            printf("<sampleToPop.tsv> improperly formatted. Exiting!\n");
             return NULL;
         }
 
@@ -103,7 +82,7 @@ int* labelSamples(kstring_t** sampleNames, int numSamples, char* sampleToPopFile
     // Create association array.
     int* samplesToLabel = calloc(numSamples, sizeof(int));
     for (int i = 0; i < numSamples; i++) {
-        k = kh_get(str, h, ks_str(sampleNames[i]));
+        k = kh_get(str, h, sampleNames[i]);
         // Assign -1 if sample name does not have a pop label.
         if (k == kh_end(h))
             samplesToLabel[i] = -1;
@@ -113,7 +92,7 @@ int* labelSamples(kstring_t** sampleNames, int numSamples, char* sampleToPopFile
 
     // Free used memory.
     free(first); free(second); free(third);
-    fclose(sampleToPopFile);
+    fclose(samplesToPopFile);
     for (k = 0; k < kh_end(h); k++)
         if (kh_exist(h, k))
             free((char*) kh_key(h, k));
@@ -122,195 +101,130 @@ int* labelSamples(kstring_t** sampleNames, int numSamples, char* sampleToPopFile
     return samplesToLabel;
 }
 
-// Print the help menu for privateD.
-// Accepts: void.
-// Returns: void.
-void print_help() {
-    printf("\n");
-    printf("privateD v1.0 January 2025\n");
-    printf("----------------------\n\n");
-    printf("Written by T. Quinn Smith\n");
-    printf("Principal Investigator: Zachary A. Szpiech\n");
-    printf("The Pennsylvania State University\n\n");
-    printf("Usage: privateD [options] <inFile.vcf.gz> <sampleToPop.tsv> <pop1>,<pop2>,<pop3>\n\n");
-    printf("<inFile.vcf.gz>             The input VCF file.\n");
-    printf("<sampleToPop.tsv>           Tab seperate file associating each sample with a population.\n");
-    printf("<pop1>,<pop2>,<pop3>        Names of the three populations in <sampleToPop.csv.gz>.\n\n");
-    printf("Options:\n");
-    printf("    -g                      The maximum standardized sample size used for rarefaction. Default 1.\n");
-    printf("    -b                      Block size for weighted jackknife. Default 2 MB.\n");
-    printf("    -h                      Haplotype size in number of loci. Default 1.\n");
-    printf("    -o                      The outputbase name.\n");
-    printf("\n");
-}
-
-// Long options.
-static ko_longopt_t long_options[] = { {NULL, 0, 0} };
-
 int main (int argc, char *argv[]) {
 
-    // If no arguments are given, print the help menu.
+    // Print help if no arguments were given.
     if (argc == 1) {
         print_help();
         return 0;
     }
 
-    // Default values for options.
-    int g = 1;
-    int blockSize = 2000000;
-    int h = 1;
-    char* outputBasename = NULL;
+    // Get configuration from user and exit if error.
+    PrivateDConfig_t* config = init_privated_config(argc, argv);
+    if (config == NULL)
+        return -1;
 
-    // Parse options
-    ketopt_t options = KETOPT_INIT;
-    int c; 
-    while ((c = ketopt(&options, argc, argv, 1, "g:b:h:o:", long_options)) >= 0) {
-        if (c == 'g') { g = (int) strtol(options.arg, (char**) NULL, 10); }
-        else if (c == 'b') { blockSize = (int) strtol(options.arg, (char**) NULL, 10); }
-        else if (c == 'h') { h = (int) strtol(options.arg, (char**) NULL, 10); }
-        else if (c == 'o') {outputBasename = options.arg;}
-        else { printf("Error! \"%s\" is unknown! Exiting ...\n", argv[options.i - 1]); return 1; }
-	}
+    // Create the VCF parser and haplotype encoer.
+    VCFLocusParser_t* vcfFile = init_vcf_locus_parser(config -> inputFileName, config -> MAF, config -> missingAF, true);
+    HaplotypeEncoder_t* encoder = init_haplotype_encoder(vcfFile -> numSamples);
 
-    // Check options.
-    if (g < 1) {
-        printf("g must be >= 1. Exiting!\n");
-        return 1;
-    }
-    if (blockSize < 1) {
-        printf("b must be >= 1. Exiting!\n");
-        return 1;
-    }
-    if (h < 1) {
-        printf("h must be >= 1. Exiting!\n");
-        return 1;
-    }
-    if (outputBasename == NULL) {
-        printf("-o must be given an argument. Exiting!\n");
+    // Associate the index of a sample in the VCF file with a population number 1,2,3. 
+    //  Samples not used are marked with -1.
+    int* samplesToLabel = labelSamples(vcfFile -> sampleNames, vcfFile -> numSamples, config -> samplesToPopFileName, config -> threePopList);
+    if (samplesToLabel == NULL) {
+        fprintf(stderr, "Improper formatting to assign samples to populations. Exiting!\n");
+        destroy_privated_config(config);
+        destroy_vcf_locus_parser(vcfFile);
+        destroy_haplotype_encoder(encoder);
         return -1;
     }
 
-    // Open VCF file for reading. If valid, create the haplotype encoder.
-    // QUESTION: Can we drop monomorphic sites/haplotypes? We can for sites.
-    VCFLocusParser_t* vcfFile = init_vcf_locus_parser(argv[argc - 3], 0, 1, true);
-    if (vcfFile == NULL) {
-        printf("Supplied VCF does not exist. Exiting!\n");
-        return 1;
-    }
-    HaplotypeEncoder_t* encoder = init_haplotype_encoder(vcfFile -> numSamples);
-
-    // Get array associating each sample with a population label.
-    char* popList = strdup(argv[argc - 1]);
-    int* samplesToLabel = labelSamples(vcfFile -> sampleNames, vcfFile -> numSamples, argv[argc - 2], popList);
-    if (samplesToLabel == NULL) {
-        free(popList);
-        destroy_vcf_locus_parser(vcfFile);
-        destroy_haplotype_encoder(encoder);
-        return 1;
-    }
-
-    // The number of haplotypes belonging to samples in the three populations.
-    int maxNumOfHaps = 0;
+    // Count the number of samples in the three populations.
+    int numSamples = 0;
     for (int i = 0; i < vcfFile -> numSamples; i++)
         if (samplesToLabel[i] != -1)
-            maxNumOfHaps += 2;
-    
-    // Make sure we have a sufficient number of chromosomes for g.
-    if (g > maxNumOfHaps) {
-        printf("g is more than the number of chromsomes belonging to the three populations. Exiting!\n");
-        free(popList);
+            numSamples++;
+
+    // Check to make sure we hace enough samples.
+    if (config -> sampleSize > 2 * numSamples) {
+        fprintf(stderr, "--sampleSize exceeds the number of lineages in the VCF. Exiting!\n");
+        free(samplesToLabel);
+        destroy_privated_config(config);
         destroy_vcf_locus_parser(vcfFile);
         destroy_haplotype_encoder(encoder);
-        return 1;
+        return -1;
     }
 
-    printf("Partitioning genome into blocks ...\n");
-    // Block our genome.
-    BlockList_t* blockList = privateD(vcfFile, encoder, samplesToLabel, maxNumOfHaps, g, blockSize, h);
+    // Compute privateD in each block and genome-wide.
+    BlockList_t* blocks = privateD(vcfFile, encoder, samplesToLabel, numSamples, config -> sampleSize, config -> blockSize, config -> haplotypeSize);
 
-    printf("Executing weight block jackknife ...\n");
-    // Execute jackknife.
-    weighted_block_jackknife(blockList);
+    // Execute our weighted jackknife.
+    weighted_block_jackknife(blocks);
 
-    // Print results to the files.
-    printf("Printing results to files ...\n");
+    // Open our three output files.
+    char out[512];
+    strcat(out, config -> outBaseName);
+    strcat(out, "_global.tsv");
+    FILE* global = fopen(out, "w");
+    out[0] = '\0';
+    strcat(out, config -> outBaseName);
+    strcat(out, "_pvals.tsv");
+    FILE* blockPVals = fopen(out, "w");
+    out[0] = '\0';
+    strcat(out, config -> outBaseName);
+    strcat(out, "_dvals.tsv");
+    FILE* blockDVals = fopen(out, "w");
 
-    // Open our three files.
-    kstring_t* output = init_kstring(outputBasename);
-    kputs("_block_pvals.tsv", output);
-    FILE* blocksPvals = fopen(ks_str(output), "w");
-    ks_overwrite(outputBasename, output);
-    kputs("_block_privateD.tsv", output);
-    FILE* blocksD = fopen(ks_str(output), "w");
-    ks_overwrite(outputBasename, output);
-    kputs("_global.tsv", output);
-    FILE* global = fopen(ks_str(output), "w");
-    destroy_kstring(output);
+    // Print command used in header for convinence.
+    fprintf(global, "#%s\n", config -> cmd);
+    fprintf(blockPVals, "#%s\n", config -> cmd);
+    fprintf(blockDVals, "#%s\n", config -> cmd);
 
-    // Print header information.
-    fprintf(blocksPvals, "#Command: ");
-    fprintf(blocksD, "#Command: ");
-    fprintf(global, "#Command: ");
-    for (int i = 0; i < argc; i++) {
-        fprintf(blocksPvals, "%s ", argv[i]);
-        fprintf(blocksD, "%s ", argv[i]);
-        fprintf(global, "%s ", argv[i]);
-    }
-    fprintf(blocksPvals, "\n");
-    fprintf(blocksD, "\n");
+    // Global contains a line for each of the number of haplotypes, privateD, variance, and pvalues genome-wide.
+    fprintf(global, "Obs");
+    for (int i = 0; i < blocks -> sampleSize; i++)
+        fprintf(global, "\tg=%d", i + 1);
     fprintf(global, "\n");
-    fprintf(blocksPvals, "BlockNum\tBlockNumOnChrom\tChrom\tStart\tEnd\tNumHaps");
-    fprintf(blocksD, "BlockNum\tBlockNumOnChrom\tChrom\tStart\tEnd\tNumHaps");
-    fprintf(global, "Value\tNumBlocks");
-    for (int i = 1; i <= g; i++) {
-        fprintf(blocksPvals, "\tg%d", i);
-        fprintf(blocksD, "\tg%d", i);
-        fprintf(global, "\tg%d", i);
-    }
-    fprintf(blocksPvals, "\n");
-    fprintf(blocksD, "\n");
-    fprintf(blocksD, "\n");
-
-    // Print block information.
-    Block_t* curBlock = blockList -> head;
-    for (int i = 0; i < blockList -> numBlocks; i++) {
-        fprintf(blocksPvals, "%d\t%d\t%s\t%d\t%d\t%d", curBlock -> blockNum, curBlock -> blockNumOnChrom, curBlock -> chrom, curBlock -> startCoordinate, curBlock -> endCoordinate, curBlock -> numHaps);
-        fprintf(blocksD, "%d\t%d\t%s\t%d\t%d\t%d", curBlock -> blockNum, curBlock -> blockNumOnChrom, curBlock -> chrom, curBlock -> startCoordinate, curBlock -> endCoordinate, curBlock -> numHaps);
-        for (int j = 0; j < g; j++) {
-            fprintf(blocksPvals, "\t%lf", curBlock -> rarefactCounts[j].p);
-            fprintf(blocksPvals, "\t%lf", curBlock -> rarefactCounts[j].num / (double) curBlock -> rarefactCounts[j].denom);
-        }
-        fprintf(blocksPvals, "\n");
-        fprintf(blocksD, "\n");
-        curBlock = curBlock -> next;
-    }
-    // Print global information.
-    fprintf(global, "privateD\t%d", blockList -> numBlocks);
-    for (int i = 0; i < g; i++) {
-        fprintf(global, "\t%lf", blockList -> rarefactCounts[i].num / (double) blockList -> rarefactCounts[i].denom);
-    }
+    fprintf(global, "Num Haps");
+    for (int i = 0; i < blocks -> sampleSize; i++)
+        fprintf(global, "\t%d", blocks -> rarefactCounts[i].denom);
     fprintf(global, "\n");
-    fprintf(global, "pvals\t%d", blockList -> numBlocks);
-    for (int i = 0; i < g; i++) {
-        fprintf(global, "\t%lf", blockList -> rarefactCounts[i].p);
-    }
+    fprintf(global, "privateD");
+    for (int i = 0; i < blocks -> sampleSize; i++)
+        fprintf(global, "\t%lf", blocks -> rarefactCounts[i].num / (double) blocks -> rarefactCounts[i].denom);
     fprintf(global, "\n");
-    fprintf(global, "stderrs\t%d", blockList -> numBlocks);
-    for (int i = 0; i < g; i++) {
-        fprintf(global, "\t%lf", blockList -> stderrs[i]);
-    }
+    fprintf(global, "Variance");
+    for (int i = 0; i < blocks -> sampleSize; i++)
+        fprintf(global, "\t%lf", blocks -> stderrs[i] * blocks -> stderrs[i]);
+    fprintf(global, "\n");
+    fprintf(global, "P-Vals");
+    for (int i = 0; i < blocks -> sampleSize; i++)
+        fprintf(global, "\t%lf", blocks -> rarefactCounts[i].p);
     fprintf(global, "\n");
 
-    printf("Done!\n");
-    fclose(blocksPvals);
-    fclose(blocksD);
-    fclose(global);
+    // Print the pvalues for each block.
+    fprintf(blockPVals, "Block Num\tBlock Num on Chr\tChromosome\tStart Position\tEnd Position\tNum Haps");
+    for (int i = 0; i < blocks -> sampleSize; i++)
+        fprintf(blockPVals, "\tg=%d", i + 1);
+    fprintf(blockPVals, "\n");
+    for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
+        fprintf(blockPVals, "%d\t%d\t%s\t%d\t%d\%d", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps);
+        for (int i = 0; i < blocks -> sampleSize; i++)
+            fprintf(blockPVals, "\t%lf", temp -> rarefactCounts[i].p);
+        fprintf(blockPVals, "\n");
+    }
+
+    // Print the privateD values for each block.
+    fprintf(blockDVals, "Block Num\tBlock Num on Chr\tChromosome\tStart Position\tEnd Position\tNum Haps");
+    for (int i = 0; i < blocks -> sampleSize; i++)
+        fprintf(blockDVals, "\tg=%d", i + 1);
+    fprintf(blockDVals, "\n");
+    for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
+        fprintf(blockDVals, "%d\t%d\t%s\t%d\t%d\%d", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps);
+        for (int i = 0; i < blocks -> sampleSize; i++)
+            fprintf(blockDVals, "\t%lf", temp -> rarefactCounts[i].num / (double) temp -> rarefactCounts[i].denom);
+        fprintf(blockDVals, "\n");
+    }
+
     // Free all used memory.
+    fclose(global);
+    fclose(blockPVals);
+    fclose(blockDVals);
+    free(samplesToLabel);
+    destroy_privated_config(config);
     destroy_vcf_locus_parser(vcfFile);
     destroy_haplotype_encoder(encoder);
-    free(popList);
-    free(samplesToLabel);
-    destroy_block_list(blockList);
+    destroy_block_list(blocks);
 
     return 0;
 }
