@@ -31,6 +31,7 @@ void print_help() {
     fprintf(stderr, "                                           Default 0; monomorphic sites are dropped.\n");
     fprintf(stderr, "    -n,--missingAF         DOUBLE      Sites with proportion of missing genotype >= DOUBLE are dropped.\n");
     fprintf(stderr, "                                           Default 1.\n");
+    fprintf(stderr, "    -o,--out               STR         The output basename of the files.\n");
     fprintf(stderr, "\n");
 }
 
@@ -41,6 +42,7 @@ static ko_longopt_t long_options[] = {
     {"haplotypeSize",   ko_required_argument,         'h'},
     {"MAF",             ko_required_argument,         'm'},
     {"missingAF",       ko_required_argument,         'n'},
+    {"out",             ko_required_argument,         'o'},
     {0, 0, 0}
 };
 
@@ -79,7 +81,7 @@ int check_configuration(PrivateDConfig_t* config) {
 
 PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 
-    const char *opt_str = "g:b:h:m:n:";
+    const char *opt_str = "g:b:h:m:n:o:";
     ketopt_t options = KETOPT_INIT;
     int c;
 
@@ -112,6 +114,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
             case 'h': config -> haplotypeSize = (int) strtol(options.arg, (char**) NULL, 10); break;
             case 'm': config -> MAF = (double) strtod(options.arg, (char**) NULL); break;
             case 'n': config -> missingAF = (double) strtod(options.arg, (char**) NULL); break;
+            case 'o': config -> outBaseName = strdup(options.arg); break;
         }
 	}
 
@@ -146,9 +149,11 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     config -> cmd = cmd -> s;
     free(cmd);
 
-    int endPos = strcspn(config -> inputFileName, ".vcf");
-    config -> outBaseName = strndup(config -> inputFileName, endPos - 1);
-
+    if (config -> outBaseName == NULL) {
+        int endPos = strcspn(config -> inputFileName, ".vcf");
+        config -> outBaseName = strndup(config -> inputFileName, endPos - 1);
+    }
+    
     return config;
 }
 
