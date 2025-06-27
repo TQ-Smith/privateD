@@ -103,22 +103,22 @@ void add_locus(HaplotypeEncoder_t* encoder, int numAlleles) {
     for (int i = 0; i < encoder -> numSamples; i++) {
         // If this locus is the first in the tree.
         if (encoder -> numLeaves == 1) {
-            // Assign the left and right alleles to their respective haplotypes.
             encoder -> genotypes[i].left = LEFT_ALLELE(encoder -> locus[i]);
-            encoder -> genotypes[i].right = RIGHT_ALLELE(encoder -> locus[i]);
-            // If either of the alleles are the missing genotype, both the left and right are flagged as missing.
-            if (encoder -> genotypes[i].left == numAlleles || encoder -> genotypes[i].right == numAlleles) {
+            if (encoder -> genotypes[i].left == numAlleles)
                 encoder -> genotypes[i].left = MISSING;
+            encoder -> genotypes[i].right = RIGHT_ALLELE(encoder -> locus[i]);
+            if (encoder -> genotypes[i].right == numAlleles)
                 encoder -> genotypes[i].right = MISSING;
-            }
-        // If either the left and right haplotypes are missing or the current loci contains a missing genotype, we flag both haplotypes as missing. 
-        } else if (encoder -> genotypes[i].left == MISSING || LEFT_ALLELE(encoder -> locus[i]) == numAlleles || RIGHT_ALLELE(encoder -> locus[i]) == numAlleles) {
-            encoder -> genotypes[i].left = MISSING;
-            encoder -> genotypes[i].right = MISSING;
-        // Otherwise, both genotypes are not missing, so we move the haplotypes to their new leaves.
         } else {
-            encoder -> genotypes[i].left = encoder -> genotypes[i].left * numAlleles + LEFT_ALLELE(encoder -> locus[i]);
-            encoder -> genotypes[i].right = encoder -> genotypes[i].right * numAlleles + RIGHT_ALLELE(encoder -> locus[i]);
+            if (encoder -> genotypes[i].left == MISSING || LEFT_ALLELE(encoder -> locus[i]) == numAlleles) 
+                encoder -> genotypes[i].left = MISSING;
+            else 
+                encoder -> genotypes[i].left = encoder -> genotypes[i].left * numAlleles + LEFT_ALLELE(encoder -> locus[i]);
+
+            if (encoder -> genotypes[i].right == MISSING || RIGHT_ALLELE(encoder -> locus[i]) == numAlleles) 
+                encoder -> genotypes[i].right = MISSING;
+            else 
+                encoder -> genotypes[i].right = encoder -> genotypes[i].right * numAlleles + RIGHT_ALLELE(encoder -> locus[i]);
         }
     }
     

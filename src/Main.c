@@ -10,6 +10,7 @@
 #include "VCFLocusParser.h"
 #include "HaplotypeEncoder.h"
 #include "PrivateD.h"
+#include "kstring.h"
 
 // Create a string-to-string hash table.
 KHASH_MAP_INIT_STR(str, int)
@@ -41,8 +42,9 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
     FILE* samplesToPopFile = fopen(samplesToPopFileName, "r");
 
     // Used for reading in sampleToPopFile.
-    char sampleName[512];
-    char popName[512];
+    char* line = calloc(1024, sizeof(char));
+    char* sampleName = calloc(512, sizeof(char));
+    char* popName = calloc(512, sizeof(char));
 
     // Setup hash table.
     khash_t(str) *h;
@@ -51,12 +53,14 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
 
     // Parse <sampleToPop.tsv>.
     int absent;
-    while (!feof(samplesToPopFile)) {
-
-        int numFields = fscanf(samplesToPopFile, "%s\t%s\n", sampleName, popName);
+    size_t length = 0;
+    while (getline(&line, &length, samplesToPopFile) != -1) {
+        
+        int numFields = sscanf(line, "%s\t%s\n", sampleName, popName);
 
         // If invalid formatting, free all memory and exit.
         if (numFields != 2) {
+            free(line); free(sampleName); free(popName);
             free(first); free(second); free(third);
             fclose(samplesToPopFile);
             for (k = 0; k < kh_end(h); k++)
@@ -78,6 +82,9 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
         kh_val(h, k) = popLabel;
 
     }
+    if (line)
+        free(line); 
+    free(sampleName); free(popName);
 
     // Create association array.
     int* samplesToLabel = calloc(numSamples, sizeof(int));
@@ -131,9 +138,11 @@ int main (int argc, char *argv[]) {
 
     // Count the number of samples in the three populations.
     int numSamples = 0;
-    for (int i = 0; i < vcfFile -> numSamples; i++)
-        if (samplesToLabel[i] != -1)
+    for (int i = 0; i < vcfFile -> numSamples; i++) {
+        if (samplesToLabel[i] != -1) {
             numSamples++;
+        }
+    }
 
     // Check to make sure we hace enough samples.
     if (config -> sampleSize > 2 * numSamples) {
@@ -152,18 +161,18 @@ int main (int argc, char *argv[]) {
     weighted_block_jackknife(blocks);
 
     // Open our three output files.
-    char out[512];
-    strcat(out, config -> outBaseName);
-    strcat(out, "_global.tsv");
-    FILE* global = fopen(out, "w");
-    out[0] = '\0';
-    strcat(out, config -> outBaseName);
-    strcat(out, "_pvals.tsv");
-    FILE* blockPVals = fopen(out, "w");
-    out[0] = '\0';
-    strcat(out, config -> outBaseName);
-    strcat(out, "_dvals.tsv");
-    FILE* blockDVals = fopen(out, "w");
+    kstring_t* out = calloc(1, sizeof(kstring_t));
+    ksprintf(out, "%s%s", config -> outBaseName, "_global.tsv");
+    FILE* global = fopen(out -> s, "w");
+    free(out -> s); free(out);
+    out = calloc(1, sizeof(kstring_t));
+    ksprintf(out, "%s%s", config -> outBaseName, "_pvals.tsv");
+    FILE* blockPVals = fopen(out -> s, "w");
+    free(out -> s); free(out);
+    out = calloc(1, sizeof(kstring_t));
+    ksprintf(out, "%s%s", config -> outBaseName, "_dvals.tsv");
+    FILE* blockDVals = fopen(out -> s, "w");
+    free(out -> s); free(out);
 
     // Print command used in header for convinence.
     fprintf(global, "#%s\n", config -> cmd);
@@ -198,7 +207,7 @@ int main (int argc, char *argv[]) {
         fprintf(blockPVals, "\tg=%d", i + 1);
     fprintf(blockPVals, "\n");
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
-        fprintf(blockPVals, "%d\t%d\t%s\t%d\t%d\%d", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps);
+        fprintf(blockPVals, "%d\t%d\t%s\t%d\t%d\t%d", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps);
         for (int i = 0; i < blocks -> sampleSize; i++)
             fprintf(blockPVals, "\t%lf", temp -> rarefactCounts[i].p);
         fprintf(blockPVals, "\n");
@@ -210,7 +219,7 @@ int main (int argc, char *argv[]) {
         fprintf(blockDVals, "\tg=%d", i + 1);
     fprintf(blockDVals, "\n");
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
-        fprintf(blockDVals, "%d\t%d\t%s\t%d\t%d\%d", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps);
+        fprintf(blockDVals, "%d\t%d\t%s\t%d\t%d\t%d", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps);
         for (int i = 0; i < blocks -> sampleSize; i++)
             fprintf(blockDVals, "\t%lf", temp -> rarefactCounts[i].num / (double) temp -> rarefactCounts[i].denom);
         fprintf(blockDVals, "\n");

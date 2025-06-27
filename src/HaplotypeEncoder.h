@@ -50,8 +50,8 @@ typedef struct {
     // The chromsome of the current haplotype.
     char* chrom;
     // The start and end coordinates of the current haplotype.
-    unsigned int startCoord;
-    unsigned int endCoord;
+    int startCoord;
+    int endCoord;
     // The number of loci in the current haplotype.
     int numLoci;
 

@@ -54,7 +54,7 @@ void weighted_block_jackknife(BlockList_t* blocks) {
         for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
             double dropped = (blocks -> rarefactCounts[i].num - temp -> rarefactCounts[i].num) / (double) (blocks -> rarefactCounts[i].denom - temp -> rarefactCounts[i].denom);
             // Get weight of th block.
-            double reweight = est - (1 - temp -> rarefactCounts[i].denom / (double) blocks -> rarefactCounts[i].denom) * dropped;
+            double reweight = (blocks -> rarefactCounts[i].num / (double) temp -> rarefactCounts[i].denom) * (est - dropped);
             // Calculate p value of block.
             temp -> rarefactCounts[i].p = get_p_val(reweight, blocks -> stderrs[i]);
         }
@@ -70,6 +70,8 @@ void weighted_block_jackknife(BlockList_t* blocks) {
 double Q_gji(int N_j, int N_ji, int g) {
     if (N_j - N_ji < g)
         return 0.0;
+    else if (g == 1)
+        return (N_j - N_ji) / (double) N_j;
     double Q = 0;
     for (int i = 0; i < g; i++)
         Q += log((N_j - N_ji - i) / (double) (N_j - i));
@@ -113,14 +115,18 @@ int accumulate_counts(HaplotypeEncoder_t* encoder, int haplotypeSize, int* sampl
     //  Reset all values in the hash table.
     for (int i = 0; i < encoder -> numSamples; i++) {
         if (samplesToLabel[i] != -1) {
-            k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].left);
-            if (k == kh_end(encoder -> labelMap))
-                k = kh_put(haplotype, encoder -> labelMap, encoder -> genotypes[i].left, &ret);
-            kh_value(encoder -> labelMap, k) = MISSING;
-            k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].right);
-            if (k == kh_end(encoder -> labelMap)) 
-                k = kh_put(haplotype, encoder -> labelMap, encoder -> genotypes[i].right, &ret);
-            kh_value(encoder -> labelMap, k) = MISSING;
+            if (encoder -> genotypes[i].left != MISSING) {
+                k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].left);
+                if (k == kh_end(encoder -> labelMap))
+                    k = kh_put(haplotype, encoder -> labelMap, encoder -> genotypes[i].left, &ret);
+                kh_value(encoder -> labelMap, k) = MISSING;
+            }
+            if (encoder -> genotypes[i].right != MISSING) {
+                k = kh_get(haplotype, encoder -> labelMap, encoder -> genotypes[i].right);
+                if (k == kh_end(encoder -> labelMap)) 
+                    k = kh_put(haplotype, encoder -> labelMap, encoder -> genotypes[i].right, &ret);
+                kh_value(encoder -> labelMap, k) = MISSING;
+            }
         }
     }
 
@@ -182,7 +188,7 @@ Block_t* get_next_block(
     bool isOnSameChrom = true;
     while (isOnSameChrom && vcfFile -> nextCoord <= endOfBlock) {
         isOnSameChrom = get_next_haplotype(vcfFile, encoder, haplotypeSize);
-
+        
         // Fill hapCounts.
         int numUniqueHaps = accumulate_counts(encoder, haplotypeSize, samplesToLabel, hapCounts, numSamples);
         /*
@@ -198,14 +204,14 @@ Block_t* get_next_block(
         block -> numHaps++;
     }
     block -> endCoordinate = encoder -> endCoord;
-
     return block;
 
 }
 
 BlockList_t* privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, int* samplesToLabel, int numSamples, int sampleSize, int blockSize, int haplotypeSize) {
-
+    
     BlockList_t* globalList = init_block_list(sampleSize);
+
 
     // Count the number of haplotyes in each population.
     //  The first row holds the global counts.
@@ -216,14 +222,20 @@ BlockList_t* privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, in
 
     while (true) {
         // Get the end position of the block for the next record.
-        int endOfBlock = ((int) ((vcfFile -> nextCoord - 1) / blockSize) + 1) * blockSize - 1;
+        int endOfBlock = ((int) ((vcfFile -> nextCoord - 1) / (double) blockSize) + 1) * blockSize;
+        
         // Get the next block.
         Block_t* temp = get_next_block(vcfFile, encoder, samplesToLabel, numSamples, sampleSize, blockSize, haplotypeSize, endOfBlock, hapCounts);
         if (temp == NULL)
             break;
 
         // Append to global list of blocks.
+        if (globalList -> numBlocks > 0 && strcmp(temp -> chrom, globalList -> tail -> chrom) == 0)
+            temp -> blockNumOnChrom = globalList -> tail -> blockNumOnChrom + 1;
+        else
+            temp -> blockNumOnChrom = 1;
         append_block(globalList, temp);
+
         // Accumulate genome-wide privateD.
         for (int i = 0; i < sampleSize; i++) {
             globalList -> rarefactCounts[i].num += temp -> rarefactCounts[i].num;

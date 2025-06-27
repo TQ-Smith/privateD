@@ -17,7 +17,7 @@ bool seek(VCFLocusParser_t* parser) {
     // We break out of the infinite loop until EOF is encountered or a 
     //  record that satisfies all the filters is encountered.
     while (true) {
-
+        
         // Get next line.
         ks_getuntil(parser -> stream, '\n', parser -> buffer, &dret);
 
@@ -165,7 +165,7 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
     return parser;
 }
 
-bool get_next_locus(VCFLocusParser_t* parser, char** chrom, unsigned int* coord, int* numOfAlleles, Locus** locus) {
+bool get_next_locus(VCFLocusParser_t* parser, char** chrom, int* coord, int* numOfAlleles, Locus** locus) {
     
     // Move primed read into arguments.
     if (*chrom != NULL)
@@ -177,7 +177,7 @@ bool get_next_locus(VCFLocusParser_t* parser, char** chrom, unsigned int* coord,
     Locus* temp = *locus;
     *locus = parser -> nextLocus;
     parser -> nextLocus = temp;
-
+    
     // Prime the next read.
     return seek(parser);
 }
@@ -216,43 +216,3 @@ void destroy_vcf_locus_parser(VCFLocusParser_t* parser) {
     // Destroy the parser.
     free(parser);
 }
-
-// Used to test the parser.
-/*
-int main() {
-    
-    kstring_t* intervals = (kstring_t*) calloc(1, sizeof(kstring_t));
-    ks_overwrite("3", intervals);
-    VCFLocusParser_t* parser = init_vcf_locus_parser("./data/vcf_parser_test.vcf.gz", NULL, false, 0.4, 0.1, true);
-
-    printf("There are %d samples with the following names:\n", parser -> numSamples);
-    for (int i = 0; i < parser -> numSamples; i++)
-        printf("%s\n", ks_str(&(parser -> sampleNames[i])));
-    
-    kstring_t* chromosome = (kstring_t*) calloc(1, sizeof(kstring_t));
-    unsigned int position;
-    int numOfAlleles;
-    Locus* locus = (Locus*) calloc(parser -> numSamples, sizeof(Locus));
-
-    while(!parser -> isEOF) {
-
-        get_next_locus(parser, chromosome, &position, &numOfAlleles, &locus);
-        
-        printf("\n");
-        printf("Chromosome: %s\n", ks_str(chromosome));
-        printf("Position: %d\n", position);
-        printf("Num Alleles: %d\n", numOfAlleles);
-        printf("Genotypes:\n");
-        for (int i = 0; i < parser -> numSamples; i++)
-            printf("%x\n", locus[i]);
-        printf("\n");
-        
-    }
-
-    destroy_vcf_locus_parser(parser);
-    free(locus);
-    free(ks_str(chromosome)); free(chromosome);
-    free(ks_str(intervals)); free(intervals);
-    
-}
-*/

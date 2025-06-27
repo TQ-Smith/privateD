@@ -146,11 +146,11 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     ksprintf(cmd, "%s ", config -> inputFileName);
     ksprintf(cmd, "%s ", config -> samplesToPopFileName);
     ksprintf(cmd, "%s", config -> threePopList);
-    config -> cmd = cmd -> s;
-    free(cmd);
+    config -> cmd = strdup(cmd -> s);
+    free(cmd -> s); free(cmd);
 
     if (config -> outBaseName == NULL) {
-        int endPos = strcspn(config -> inputFileName, ".vcf");
+        int endPos = (int) ((long) strstr(config -> inputFileName, ".vcf") - (long) config -> inputFileName) + 1;
         config -> outBaseName = strndup(config -> inputFileName, endPos - 1);
     }
     
