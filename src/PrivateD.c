@@ -52,11 +52,8 @@ void weighted_block_jackknife(BlockList_t* blocks) {
     for (int i = 0; i < blocks -> sampleSize; i++) {
         double est = blocks -> rarefactCounts[i].num / (double) blocks -> rarefactCounts[i].denom;
         for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
-            double dropped = (blocks -> rarefactCounts[i].num - temp -> rarefactCounts[i].num) / (double) (blocks -> rarefactCounts[i].denom - temp -> rarefactCounts[i].denom);
-            // Get weight of th block.
-            double reweight = est - (1 - blocks -> rarefactCounts[i].num / (double) temp -> rarefactCounts[i].denom) * dropped;
-            // Calculate p value of block.
-            temp -> rarefactCounts[i].p = get_p_val(reweight, blocks -> stderrs[i]);
+            double obs = temp -> rarefactCounts[i].num / (double) temp -> rarefactCounts[i].denom;
+            temp -> rarefactCounts[i].p = get_p_val(obs, blocks -> stderrs[i]);
         }
         // P-values for global count.
         blocks -> rarefactCounts[i].p = get_p_val(est, blocks -> stderrs[i]);
