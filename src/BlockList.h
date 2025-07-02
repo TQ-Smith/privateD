@@ -8,14 +8,6 @@
 #ifndef _BLOCK_LIST_H_
 #define _BLOCK_LIST_H_
 
-// Track the counts for a given sample size in a block.
-//  Also, store p value for convience.
-typedef struct Counts {
-    int num;
-    int denom;
-    double p;
-} Counts_t;
-
 // A node in the BlockList.
 typedef struct Block {
     int blockNum;
@@ -24,7 +16,12 @@ typedef struct Block {
     int startCoordinate;
     int endCoordinate;
     int numHaps;
-    Counts_t* rarefactCounts;
+
+    // Block counts.
+    int num;
+    int denom;
+    double p;
+
     struct Block* next;
 } Block_t;
 
@@ -32,12 +29,18 @@ typedef struct Block {
 typedef struct BlockList {
     int numSamples;
     int sampleSize;
-    Counts_t* rarefactCounts;
+    
+    // Global counts.
+    int num;
+    int denom;
+    double p;
+    int numHaps;
+
     int numBlocks;
     Block_t* head;
     Block_t* tail;
-    // Our standard errors for each g computed by jackknife.
-    double* stderrs;
+
+    double stderr;
 } BlockList_t;
 
 // Creates a list of blocks.
@@ -50,8 +53,7 @@ BlockList_t* init_block_list(int sampleSize);
 // Acccepts:
 //  char* chrom -> The chromosome the block is on.
 //  int startCoordinate -> The coordinate of the firs record in the block.
-//  int sampleSize -> The standardized samples size.
-Block_t* init_block(char* chrom, int startCoordinate, int sampleSize);
+Block_t* init_block(char* chrom, int startCoordinate);
 
 // Adds a block to the block list.
 // Accepts:

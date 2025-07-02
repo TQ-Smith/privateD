@@ -138,97 +138,36 @@ int main (int argc, char *argv[]) {
 
     // Count the number of samples in the three populations.
     int numSamples = 0;
-    for (int i = 0; i < vcfFile -> numSamples; i++) {
-        if (samplesToLabel[i] != -1) {
+    for (int i = 0; i < vcfFile -> numSamples; i++)
+        if (samplesToLabel[i] != -1) 
             numSamples++;
-        }
-    }
-
-    // Check to make sure we hace enough samples.
-    if (config -> sampleSize > 2 * numSamples) {
-        fprintf(stderr, "--sampleSize exceeds the number of lineages in the VCF. Exiting!\n");
-        free(samplesToLabel);
-        destroy_privated_config(config);
-        destroy_vcf_locus_parser(vcfFile);
-        destroy_haplotype_encoder(encoder);
-        return -1;
-    }
-
+    
     // Compute privateD in each block and genome-wide.
     BlockList_t* blocks = privateD(vcfFile, encoder, samplesToLabel, numSamples, config -> sampleSize, config -> blockSize, config -> haplotypeSize);
 
     // Execute our weighted jackknife.
     weighted_block_jackknife(blocks);
 
-    // Open our three output files.
-    kstring_t* out = calloc(1, sizeof(kstring_t));
-    ksprintf(out, "%s%s", config -> outBaseName, "_global.tsv");
-    FILE* global = fopen(out -> s, "w");
-    free(out -> s); free(out);
-    out = calloc(1, sizeof(kstring_t));
-    ksprintf(out, "%s%s", config -> outBaseName, "_pvals.tsv");
-    FILE* blockPVals = fopen(out -> s, "w");
-    free(out -> s); free(out);
-    out = calloc(1, sizeof(kstring_t));
-    ksprintf(out, "%s%s", config -> outBaseName, "_dvals.tsv");
-    FILE* blockDVals = fopen(out -> s, "w");
-    free(out -> s); free(out);
-
-    // Print command used in header for convinence.
-    fprintf(global, "#%s\n", config -> cmd);
-    fprintf(blockPVals, "#%s\n", config -> cmd);
-    fprintf(blockDVals, "#%s\n", config -> cmd);
-
-    // Global contains a line for each of the number of haplotypes, privateD, variance, and pvalues genome-wide.
-    fprintf(global, "Obs");
-    for (int i = 0; i < blocks -> sampleSize; i++)
-        fprintf(global, "\tg=%d", i + 1);
-    fprintf(global, "\n");
-    fprintf(global, "Num Haps");
-    for (int i = 0; i < blocks -> sampleSize; i++)
-        fprintf(global, "\t%d", blocks -> rarefactCounts[i].denom);
-    fprintf(global, "\n");
-    fprintf(global, "privateD");
-    for (int i = 0; i < blocks -> sampleSize; i++)
-        fprintf(global, "\t%lf", blocks -> rarefactCounts[i].num / (double) blocks -> rarefactCounts[i].denom);
-    fprintf(global, "\n");
-    fprintf(global, "Variance");
-    for (int i = 0; i < blocks -> sampleSize; i++)
-        fprintf(global, "\t%lf", blocks -> stderrs[i] * blocks -> stderrs[i]);
-    fprintf(global, "\n");
-    fprintf(global, "P-Vals");
-    for (int i = 0; i < blocks -> sampleSize; i++)
-        fprintf(global, "\t%lf", blocks -> rarefactCounts[i].p);
-    fprintf(global, "\n");
-
-    // Print the pvalues for each block.
-    fprintf(blockPVals, "Block Num\tBlock Num on Chr\tChromosome\tStart Position\tEnd Position\tNum Haps");
-    for (int i = 0; i < blocks -> sampleSize; i++)
-        fprintf(blockPVals, "\tg=%d", i + 1);
-    fprintf(blockPVals, "\n");
-    for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
-        fprintf(blockPVals, "%d\t%d\t%s\t%d\t%d\t%d", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps);
-        for (int i = 0; i < blocks -> sampleSize; i++)
-            fprintf(blockPVals, "\t%lf", temp -> rarefactCounts[i].p);
-        fprintf(blockPVals, "\n");
+    // Default is to write to stdout.
+    FILE* output = stdout;
+    if (config -> outBaseName != NULL) {
+        kstring_t* out = calloc(1, sizeof(kstring_t));
+        ksprintf(out, "%s%s", config -> outBaseName, "_global.tsv");
+        output = fopen(out -> s, "w");
+        free(out -> s); free(out);
     }
 
-    // Print the privateD values for each block.
-    fprintf(blockDVals, "Block Num\tBlock Num on Chr\tChromosome\tStart Position\tEnd Position\tNum Haps");
-    for (int i = 0; i < blocks -> sampleSize; i++)
-        fprintf(blockDVals, "\tg=%d", i + 1);
-    fprintf(blockDVals, "\n");
-    for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
-        fprintf(blockDVals, "%d\t%d\t%s\t%d\t%d\t%d", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps);
-        for (int i = 0; i < blocks -> sampleSize; i++)
-            fprintf(blockDVals, "\t%lf", temp -> rarefactCounts[i].num / (double) temp -> rarefactCounts[i].denom);
-        fprintf(blockDVals, "\n");
-    }
+    // Output values.
+    fprintf(output, "#%s\n", config -> cmd);
+    fprintf(output, "#Jackknifed estimated variance: %lf\n", blocks -> stderr);
+    fprintf(output, "Block Num\tBlock Num on Chr\tChromosome\tStart Position\tEnd Position\tNum Haps\tD-denom\tD\tpval\n");
+    for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next)
+        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%d\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> denom, temp -> num / (double) temp -> denom, temp -> p);
+    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%d\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> denom, blocks -> num / (double) blocks -> denom, blocks -> p);
 
     // Free all used memory.
-    fclose(global);
-    fclose(blockPVals);
-    fclose(blockDVals);
+    if (config -> outBaseName != NULL)
+        fclose(output);
     free(samplesToLabel);
     destroy_privated_config(config);
     destroy_vcf_locus_parser(vcfFile);

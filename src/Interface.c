@@ -21,8 +21,8 @@ void print_help() {
     fprintf(stderr, "<sampleToPop.tsv>                  Tab seperate file associating each sample with a population.\n");
     fprintf(stderr, "<pop1>,<pop2>,<pop3>               Names of the three populations to test.\n\n");
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "    -g,--sampleSize        INT         The maximum standardized sample size.\n");
-    fprintf(stderr, "                                           Default 1.\n");
+    fprintf(stderr, "    -g,--sampleSize        INT         The maximum standardized sample size. Site dropped if threshold not met.\n");
+    fprintf(stderr, "                                           Default at eac site take number of lineages in smallest population.\n");
     fprintf(stderr, "    -b,--blockSize         INT         Block size for weighted jackknife.\n");
     fprintf(stderr, "                                           Default 2 MB.\n");
     fprintf(stderr, "    -h,--haplotypeSize     INT         Haplotype size in number of loci.\n");
@@ -31,7 +31,8 @@ void print_help() {
     fprintf(stderr, "                                           Default 0; monomorphic sites are dropped.\n");
     fprintf(stderr, "    -n,--missingAF         DOUBLE      Sites with proportion of missing genotype >= DOUBLE are dropped.\n");
     fprintf(stderr, "                                           Default 1.\n");
-    fprintf(stderr, "    -o,--out               STR         The output basename of the files.\n");
+    fprintf(stderr, "    -o,--out               STR         The output file basename.\n");
+    fprintf(stderr, "                                           Default stdout.\n");
     fprintf(stderr, "\n");
 }
 
@@ -48,10 +49,6 @@ static ko_longopt_t long_options[] = {
 
 // Check that user supplied values are valid.
 int check_configuration(PrivateDConfig_t* config) {
-    if (config -> sampleSize < 1) {
-        fprintf(stderr, "--sampleSize must be given an integer >= 1. Exiting!\n");
-        return -1;
-    }
     if (config -> blockSize < 1) {
         fprintf(stderr, "--blockSize must be given an integer >= 1. Exiting!\n");
         return -1;
@@ -94,7 +91,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 
     // Set defaults.
     PrivateDConfig_t* config = calloc(1, sizeof(PrivateDConfig_t));
-    config -> sampleSize = 1;
+    config -> sampleSize = -1;
     config -> haplotypeSize = 1;
     config -> blockSize = 2000000;
     config -> MAF = 0;
@@ -149,11 +146,6 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     config -> cmd = strdup(cmd -> s);
     free(cmd -> s); free(cmd);
 
-    if (config -> outBaseName == NULL) {
-        int endPos = (int) ((long) strstr(config -> inputFileName, ".vcf") - (long) config -> inputFileName) + 1;
-        config -> outBaseName = strndup(config -> inputFileName, endPos - 1);
-    }
-    
     return config;
 }
 

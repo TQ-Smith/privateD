@@ -7,7 +7,6 @@
 
 #include "PrivateD.h"
 #include <math.h>
-#include <stdio.h>
 
 #define EPS 1e-8
 
@@ -20,46 +19,37 @@ double get_p_val(double d, double std) {
 
 void weighted_block_jackknife(BlockList_t* blocks) {
     
-    // The jackknife estimator for each sample size.
-    double* jack = (double*) calloc(blocks -> sampleSize, sizeof(double));
-    
     // Calculate the jackknife estimator.
-    for (int i = 0; i < blocks -> sampleSize; i++) {
-        double sum = 0;
-        for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
-            int n = blocks -> rarefactCounts[i].denom;
-            double dropped = (blocks -> rarefactCounts[i].num - temp -> rarefactCounts[i].num) / (double) (blocks -> rarefactCounts[i].denom - temp -> rarefactCounts[i].denom);
-            sum += (n - temp -> rarefactCounts[i].denom) * dropped / (double) n;
-        }
-        double est = blocks -> rarefactCounts[i].num / (double) blocks -> rarefactCounts[i].denom;
-        jack[i] = blocks -> numBlocks * est - sum;
+    double sum = 0;
+    for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
+        int n = blocks -> denom;
+        double dropped = (blocks -> num - temp -> num) / (double) (blocks -> denom - temp -> denom);
+        sum += (n - temp -> denom) * dropped / (double) n;
     }
+    double est = blocks -> num / (double) blocks -> denom;
 
-    // Calculate the standard errors.
-    for (int i = 0; i < blocks -> sampleSize; i++) {
-        double sum = 0;
-        for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
-            double h = blocks -> rarefactCounts[i].denom / (double) temp -> rarefactCounts[i].denom;
-            double dropped = (blocks -> rarefactCounts[i].num - temp -> rarefactCounts[i].num) / (double) (blocks -> rarefactCounts[i].denom - temp -> rarefactCounts[i].denom);
-            double est = blocks -> rarefactCounts[i].num / (double) blocks -> rarefactCounts[i].denom;
-            double pseudo = h * est - (h - 1) * dropped;
-            sum += (pseudo - jack[i]) * (pseudo - jack[i]) / (h - 1);
-        }
-        blocks -> stderrs[i] = sqrt(sum / blocks -> numBlocks);
+    // Our jackknife estimator.
+    double jack = blocks -> numBlocks * est - sum;
+
+    // Calculate the standard error.
+    sum = 0;
+    for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
+        double h = blocks -> denom / (double) temp -> denom;
+        double dropped = (blocks -> num - temp -> num) / (double) (blocks -> denom - temp -> denom);
+        double est = blocks -> num / (double) blocks -> denom;
+        double pseudo = h * est - (h - 1) * dropped;
+        sum += (pseudo - jack) * (pseudo - jack) / (h - 1);
     }
+    blocks -> stderr = sqrt(sum / blocks -> numBlocks);
 
     // Calculate our pvalues for each block and genome-wide.
-    for (int i = 0; i < blocks -> sampleSize; i++) {
-        double est = blocks -> rarefactCounts[i].num / (double) blocks -> rarefactCounts[i].denom;
-        for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
-            double obs = temp -> rarefactCounts[i].num / (double) temp -> rarefactCounts[i].denom;
-            temp -> rarefactCounts[i].p = get_p_val(obs, blocks -> stderrs[i]);
-        }
-        // P-values for global count.
-        blocks -> rarefactCounts[i].p = get_p_val(est, blocks -> stderrs[i]);
+    est = blocks -> num / (double) blocks -> denom;
+    for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
+        double obs = temp -> num / (double) temp -> denom;
+        temp -> p = get_p_val(obs, blocks -> stderr);
     }
-
-    free(jack);
+    // P-values for global count.
+    blocks -> p = get_p_val(est, blocks -> stderr);
 
 }
 
@@ -77,25 +67,20 @@ double Q_gji(int N_j, int N_ji, int g) {
 
 // Calculate privateD at the locus.
 void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int sampleSize) {
-    double pi13, pi23;
-    // For each standardized sample size
-    for (int g = 0; g < sampleSize; g++) {
-        pi13 = 0;
-        pi23 = 0;
-        // Calculate the private allelic richness for the two combinations.
-        for (int i = 0; i < numUniqueHaps; i++) {
-            pi13 += exp(log(1 - Q_gji(hapCounts[0][0], hapCounts[0][i + 1], g + 1)) + log(1 - Q_gji(hapCounts[2][0], hapCounts[2][i + 1], g + 1)) + log(Q_gji(hapCounts[1][0], hapCounts[1][i + 1], g + 1)));
-            pi23 += exp(log(1 - Q_gji(hapCounts[1][0], hapCounts[1][i + 1], g + 1)) + log(1 - Q_gji(hapCounts[2][0], hapCounts[2][i + 1], g + 1)) + log(Q_gji(hapCounts[0][0], hapCounts[0][i + 1], g + 1)));
-        }
-        // If they are not equal
-        if (fabs(pi13 - pi23) > EPS) {
-            // Increment our counts.
-            if (pi23 > pi13)
-                block -> rarefactCounts[g].num += 1;
-            else 
-                block -> rarefactCounts[g].num -= 1;
-            block -> rarefactCounts[g].denom += 1;
-        }
+    double pi13 = 0, pi23 = 0;
+    // Calculate the private allelic richness for the two combinations.
+    for (int i = 0; i < numUniqueHaps; i++) {
+        pi13 += exp(log(1 - Q_gji(hapCounts[0][0], hapCounts[0][i + 1], sampleSize)) + log(1 - Q_gji(hapCounts[2][0], hapCounts[2][i + 1], sampleSize)) + log(Q_gji(hapCounts[1][0], hapCounts[1][i + 1], sampleSize)));
+        pi23 += exp(log(1 - Q_gji(hapCounts[1][0], hapCounts[1][i + 1], sampleSize)) + log(1 - Q_gji(hapCounts[2][0], hapCounts[2][i + 1], sampleSize)) + log(Q_gji(hapCounts[0][0], hapCounts[0][i + 1], sampleSize)));
+    }
+    // If they are not equal
+    if (fabs(pi13 - pi23) > EPS) {
+        // Increment our counts.
+        if (pi23 > pi13)
+            block -> num += 1;
+        else 
+            block -> num -= 1;
+        block -> denom += 1;
     }
 }
 
@@ -180,7 +165,7 @@ Block_t* get_next_block(
     if (isEOF(vcfFile))
         return NULL;
 
-    Block_t* block = init_block(vcfFile -> nextChrom, vcfFile -> nextCoord, sampleSize);
+    Block_t* block = init_block(vcfFile -> nextChrom, vcfFile -> nextCoord);
 
     bool isOnSameChrom = true;
     while (isOnSameChrom && vcfFile -> nextCoord <= endOfBlock) {
@@ -188,13 +173,14 @@ Block_t* get_next_block(
         
         // Fill hapCounts.
         int numUniqueHaps = accumulate_counts(encoder, haplotypeSize, samplesToLabel, hapCounts, numSamples);
-        /*
-        fprintf(stderr, "Hap Counts:\n");
-        fprintf(stderr, "Global: %d %d %d\n", hapCounts[0][0], hapCounts[1][0], hapCounts[2][0]);
-        for (int i = 1; i <= numUniqueHaps; i++)
-            fprintf(stderr, "%d %d %d\n", hapCounts[0][i], hapCounts[1][i], hapCounts[2][i]);
-        fprintf(stderr, "\n");
-        */
+        
+        // If sample size was not set by the user, then we take the min of the three populations.
+        int minNumLineages = (int) fmin(hapCounts[0][0], fmin(hapCounts[1][0], hapCounts[2][0]));
+        if (sampleSize == -1)
+            sampleSize = minNumLineages;
+        // Otherwise, if it was set and we do not have the appropriate number of lineages, we skip the haplotype.
+        else if (sampleSize > minNumLineages)
+            continue;
 
         // Use hapCounts for rarefaction calculations.
         locus_privateD(block, hapCounts, numUniqueHaps, sampleSize);
@@ -234,10 +220,10 @@ BlockList_t* privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, in
         append_block(globalList, temp);
 
         // Accumulate genome-wide privateD.
-        for (int i = 0; i < sampleSize; i++) {
-            globalList -> rarefactCounts[i].num += temp -> rarefactCounts[i].num;
-            globalList -> rarefactCounts[i].denom += temp -> rarefactCounts[i].denom;
-        }
+        globalList -> num += temp -> num;
+        globalList -> denom += temp -> denom;
+
+        globalList -> numHaps += temp -> numHaps;
     }
 
     free(hapCounts[0]); free(hapCounts[1]); free(hapCounts[2]);
