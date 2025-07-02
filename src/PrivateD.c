@@ -42,13 +42,8 @@ void weighted_block_jackknife(BlockList_t* blocks) {
     }
     blocks -> stderr = sqrt(sum / blocks -> numBlocks);
 
-    // Calculate our pvalues for each block and genome-wide.
+    // Calculate our pvalues genome-wide.
     est = blocks -> num / (double) blocks -> denom;
-    for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
-        double obs = temp -> num / (double) temp -> denom;
-        temp -> p = get_p_val(obs, blocks -> stderr);
-    }
-    // P-values for global count.
     blocks -> p = get_p_val(est, blocks -> stderr);
 
 }

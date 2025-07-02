@@ -160,10 +160,11 @@ int main (int argc, char *argv[]) {
     // Output values.
     fprintf(output, "#%s\n", config -> cmd);
     fprintf(output, "#Jackknifed estimated variance: %lf\n", blocks -> stderr);
-    fprintf(output, "Block Num\tBlock Num on Chr\tChromosome\tStart Position\tEnd Position\tNum Haps\tD-denom\tD\tpval\n");
+    fprintf(output, "#Global privateD=%lf\n", blocks -> num / (double) blocks -> denom);
+    fprintf(output, "#p-value=%lf\n", blocks -> p);
+    fprintf(output, "Block Num\tBlock Num on Chr\tChromosome\tStart Position\tEnd Position\tNum Haps\tD-denom\tD\n");
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next)
-        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%d\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> denom, temp -> num / (double) temp -> denom, temp -> p);
-    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%d\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> denom, blocks -> num / (double) blocks -> denom, blocks -> p);
+        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%d\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> denom, temp -> num / (double) temp -> denom);
 
     // Free all used memory.
     if (config -> outBaseName != NULL)
