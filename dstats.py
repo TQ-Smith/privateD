@@ -248,6 +248,22 @@ if __name__ == "__main__":
     print("#python3 dstats.py", sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
     print('BLOCK\tBLOCK_ON_CHROM\tCHROM\tSTART\tEND\tNUM_LOCI_D\tNUM_LOCI_D_PLUS\tD\tD_PLUS')
     for i in range(len(blocks) - 1):
-        print(blocks[i]['blockNum'], blocks[i]['blockNumOnChrom'], blocks[i]['chr'], blocks[i]['start'], blocks[i]['end'], blocks[i]['d_denom'], blocks[i]['dplus_denom'], blocks[i]['d_num'] / blocks[i]['d_denom'], blocks[i]['dplus_num'] / blocks[i]['dplus_denom'], sep='\t')
+        if  blocks[i]['d_denom'] != 0:
+            d = blocks[i]['d_num'] / blocks[i]['d_denom']
+        else:
+             d = 'NA'
+        if blocks[i]['dplus_denom'] != 0:
+            dplus = blocks[i]['dplus_num'] / blocks[i]['dplus_denom']
+        else:
+            dplus = 'NA'
+        print(blocks[i]['blockNum'], blocks[i]['blockNumOnChrom'], blocks[i]['chr'], blocks[i]['start'], blocks[i]['end'], blocks[i]['d_denom'], blocks[i]['dplus_denom'], d, dplus, sep='\t')
     i = len(blocks) - 1
+    if  blocks[i]['d_denom'] != 0:
+        d = blocks[i]['d_num'] / blocks[i]['d_denom']
+    else:
+            d = 'NA'
+    if blocks[i]['dplus_denom'] != 0:
+        dplus = blocks[i]['dplus_num'] / blocks[i]['dplus_denom']
+    else:
+        dplus = 'NA'
     print('0', '0', 'Global', blocks[i]['start'], blocks[i]['end'], blocks[i]['d_denom'], blocks[i]['dplus_denom'], blocks[i]['d_num'] / blocks[i]['d_denom'], blocks[i]['dplus_num'] / blocks[i]['dplus_denom'], sep='\t')
