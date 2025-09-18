@@ -62,8 +62,10 @@ Block_t* get_next_block(
                 BABA += 1;
             if (alleleCounts[0][2] == 1 && alleleCounts[1][1] == 1 && alleleCounts[2][1] == 1 && alleleCounts[3][1] == 1)
                 BAAA += 1;
-            if (alleleCounts[0][1] == 1 && alleleCounts[1][2] == 1 && alleleCounts[2][1] == 1 && alleleCounts[3][1] == 1)
+            if (alleleCounts[0][1] == 1 && alleleCounts[1][2] == 1 && alleleCounts[2][2] == 1 && alleleCounts[3][1] == 1)
                 ABBA += 1;
+            if (alleleCounts[0][2] == 1 && alleleCounts[1][2] == 1 && alleleCounts[2][1] == 1 && alleleCounts[3][1] == 1)
+                BBAA += 1;
         } else {
             p1 = alleleCounts[0][2] / (double) alleleCounts[0][0];
             p2 = alleleCounts[1][2] / (double) alleleCounts[1][0];
