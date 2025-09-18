@@ -69,7 +69,7 @@ bool seek(VCFLocusParser_t* parser) {
         maf = 1;
         afMax = 0;
         for (int i = 0; i < numAlleles; i++) {
-            af = parser -> alleleCounts[i] / (2.0 * parser -> numSamples);
+            af = parser -> alleleCounts[i] / (2.0 * parser -> numSamples - parser -> alleleCounts[numAlleles]);
             if (af < maf)
                 maf = af;
             if (af > afMax)

@@ -11,31 +11,20 @@
 
 void print_help() {
     fprintf(stderr, "\n");
-    fprintf(stderr, "privateD v1.0\n");
+    fprintf(stderr, "dplus\n");
     fprintf(stderr, "----------------------\n\n");
-    fprintf(stderr, "Written by T. Quinn Smith\n");
-    fprintf(stderr, "Principal Investigator: Zachary A. Szpiech\n");
-    fprintf(stderr, "The Pennsylvania State University\n\n");
-    fprintf(stderr, "Usage: privateD [options] <inFile.vcf.gz> <sampleToPop.tsv> <pop1>,<pop2>,<pop3>\n\n");
+    fprintf(stderr, "Implements D and D+ statistics in sliding window.\n");
+    fprintf(stderr, "Usage: dplus [options] <inFile.vcf.gz> <sampleToPop.tsv> <pop1>,<pop2>,<pop3>\n\n");
     fprintf(stderr, "<inFile.vcf.gz>                    The input VCF file.\n");
     fprintf(stderr, "<sampleToPop.tsv>                  Tab seperate file associating each sample with a population.\n");
-    fprintf(stderr, "<pop1>,<pop2>,<pop3>               Names of the three populations to test.\n\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Prints to stdout by default. Progress printed to stderr.\n");
-    fprintf(stderr, "\n");
+    fprintf(stderr, "<pop1>,<pop2>,<pop3>,<pop4>        Names of the four populations to test.\n\n");
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "    -g,--sampleSize        INT         The maximum standardized sample size. Site dropped if threshold not met.\n");
-    fprintf(stderr, "                                           Default at each site take number of lineages in smallest population.\n");
     fprintf(stderr, "    -b,--blockSize         INT         Block size for weighted jackknife.\n");
     fprintf(stderr, "                                           Default 2 MB.\n");
-    fprintf(stderr, "    -h,--haplotypeSize     INT         Haplotype size in number of loci.\n");
-    fprintf(stderr, "                                           Default 1.\n");
     fprintf(stderr, "    -m,--MAF               DOUBLE      Biallelic sites with MAF <= DOUBLE are dropped.\n");
     fprintf(stderr, "                                           Default 0; monomorphic sites are dropped.\n");
     fprintf(stderr, "    -n,--missingAF         DOUBLE      Sites with proportion of missing genotype >= DOUBLE are dropped.\n");
     fprintf(stderr, "                                           Default 1.\n");
-    fprintf(stderr, "    -r,--replicates        INT         Report empirical p-values from bootstrap with INT number of replicates.\n");
-    fprintf(stderr, "                                           Default is to report p-values using the weighted jackknife.\n");
     fprintf(stderr, "    -o,--out               STR         The output file basename.\n");
     fprintf(stderr, "                                           Default stdout.\n");
     fprintf(stderr, "\n");
@@ -43,28 +32,17 @@ void print_help() {
 
 // Our options.
 static ko_longopt_t long_options[] = {
-    {"sampleSize",      ko_required_argument,         'g'},
     {"blockSize",       ko_required_argument,         'b'},
-    {"haplotypeSize",   ko_required_argument,         'h'},
     {"MAF",             ko_required_argument,         'm'},
     {"missingAF",       ko_required_argument,         'n'},
-    {"replicates",      ko_required_argument,         'r'},
     {"out",             ko_required_argument,         'o'},
     {0, 0, 0}
 };
 
 // Check that user supplied values are valid.
 int check_configuration(PrivateDConfig_t* config) {
-    if (config -> replicates < 0) {
-        fprintf(stderr, "Number of replicates must be and integer >= 1. Exiting!\n");
-        return -1;
-    }
     if (config -> blockSize < 1) {
         fprintf(stderr, "--blockSize must be given an integer >= 1. Exiting!\n");
-        return -1;
-    }
-    if (config -> haplotypeSize < 1) {
-        fprintf(stderr, "-haplotypeSize must be given an integer >= 1. Exiting!\n");
         return -1;
     }
     if (config -> MAF < 0 || config -> MAF >= 1) {
@@ -88,7 +66,7 @@ int check_configuration(PrivateDConfig_t* config) {
 
 PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 
-    const char *opt_str = "g:b:h:m:n:r:o:";
+    const char *opt_str = "b:m:n:o:";
     ketopt_t options = KETOPT_INIT;
     int c;
 
@@ -101,15 +79,12 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 
     // Set defaults.
     PrivateDConfig_t* config = calloc(1, sizeof(PrivateDConfig_t));
-    config -> sampleSize = -1;
-    config -> haplotypeSize = 1;
     config -> blockSize = 2000000;
     config -> MAF = 0;
     config -> missingAF = 1;
-    config -> replicates = 0;
     config -> inputFileName = NULL;
     config -> samplesToPopFileName = NULL;
-    config -> threePopList = NULL;
+    config -> fourPopList = NULL;
     config -> cmd = NULL;
     config -> outBaseName = NULL;
     
@@ -117,12 +92,9 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     options = KETOPT_INIT;
     while ((c = ketopt(&options, argc, argv, 1, opt_str, long_options)) >= 0) {
         switch (c) {
-            case 'g': config -> sampleSize = (int) strtol(options.arg, (char**) NULL, 10); break;
             case 'b': config -> blockSize = (int) strtol(options.arg, (char**) NULL, 10); break;
-            case 'h': config -> haplotypeSize = (int) strtol(options.arg, (char**) NULL, 10); break;
             case 'm': config -> MAF = (double) strtod(options.arg, (char**) NULL); break;
             case 'n': config -> missingAF = (double) strtod(options.arg, (char**) NULL); break;
-            case 'r': config -> replicates = (int) strtol(options.arg, (char**) NULL, 10); break;
             case 'o': config -> outBaseName = strdup(options.arg); break;
         }
 	}
@@ -136,7 +108,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 
     config -> inputFileName = strdup(argv[options.ind]);
     config -> samplesToPopFileName = strdup(argv[options.ind + 1]);
-    config -> threePopList = strdup(argv[options.ind + 2]);
+    config -> fourPopList = strdup(argv[options.ind + 2]);
 
     // Check configuration.
     if (check_configuration(config) != 0) {
@@ -146,17 +118,13 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 
     // We save the long form of the command to output in the header of files.
     kstring_t* cmd = (kstring_t*) calloc(1, sizeof(kstring_t));
-    ksprintf(cmd ,"privated ");
-    ksprintf(cmd, "--sampleSize %d ", config -> sampleSize);
+    ksprintf(cmd ,"dplus ");
     ksprintf(cmd, "--blockSize %d ", config -> blockSize);
-    ksprintf(cmd, "--haplotypeSize %d ", config -> haplotypeSize);
     ksprintf(cmd, "--MAF %lf ", config -> MAF);
     ksprintf(cmd, "--missingAF %lf ", config -> missingAF);
-    if (config -> replicates > 0)
-        ksprintf(cmd, "--replicates %d ", config -> replicates);
     ksprintf(cmd, "%s ", config -> inputFileName);
     ksprintf(cmd, "%s ", config -> samplesToPopFileName);
-    ksprintf(cmd, "%s", config -> threePopList);
+    ksprintf(cmd, "%s", config -> fourPopList);
     config -> cmd = strdup(cmd -> s);
     free(cmd -> s); free(cmd);
 
@@ -170,8 +138,8 @@ void destroy_privated_config(PrivateDConfig_t* config) {
         free(config -> inputFileName);
     if (config -> samplesToPopFileName != NULL)
         free(config -> samplesToPopFileName);
-    if (config -> threePopList != NULL)
-        free(config -> threePopList);
+    if (config -> fourPopList != NULL)
+        free(config -> fourPopList);
     if (config -> cmd != NULL)
         free(config -> cmd);
     if (config -> outBaseName != NULL)

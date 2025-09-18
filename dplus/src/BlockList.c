@@ -18,14 +18,13 @@ Block_t* init_block(char* chrom, int startCoordinate) {
     return block;
 }
 
-BlockList_t* init_block_list(int sampleSize) {
+BlockList_t* init_block_list() {
     BlockList_t* blockList = calloc(1, sizeof(BlockList_t));
-    blockList -> sampleSize = sampleSize;
     blockList -> numBlocks = 0;
     blockList -> head = NULL;
     blockList -> tail = NULL;
     blockList -> numHaps = 0;
-    blockList -> stder = 0;
+    blockList -> stderr = 0;
     return blockList;
 }
 

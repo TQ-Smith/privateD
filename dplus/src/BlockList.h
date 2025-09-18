@@ -17,10 +17,15 @@ typedef struct Block {
     int endCoordinate;
     int numHaps;
 
-    // Block private alleles.
-    double num;
-    double denom;
-    double p;
+    // Block counts.
+    double dNum;
+    double dDenom;
+    double dplusNum;
+    double dplusDenom;
+    double fdNum;
+    double fdDenom;
+    double dfNum;
+    double dfDenom;
 
     struct Block* next;
 } Block_t;
@@ -30,24 +35,29 @@ typedef struct BlockList {
     int numSamples;
     int sampleSize;
     
-    // Global private alleles.
-    double num;
-    double denom;
-    double p;
+    // Global counts.
+    double dNum;
+    double dDenom;
+    double dplusNum;
+    double dplusDenom;
+    double fdNum;
+    double fdDenom;
+    double dfNum;
+    double dfDenom;
+
     int numHaps;
 
     int numBlocks;
     Block_t* head;
     Block_t* tail;
 
-    double stder;
+    double stderr;
 } BlockList_t;
 
 // Creates a list of blocks.
-// Accepts:
-//  int sampleSize -> The standardized samples size. Redundant but good to track.
+// Accepts: void.
 // Returns: An empty block list.
-BlockList_t* init_block_list(int sampleSize);
+BlockList_t* init_block_list();
 
 // Creates a block.
 // Acccepts:

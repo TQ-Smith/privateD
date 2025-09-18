@@ -13,15 +13,12 @@
 
 // All the possible values that define a run of privateD.
 typedef struct {
-    int sampleSize;
-    int haplotypeSize;
     int blockSize;
     double MAF;
     double missingAF;
-    int replicates;
     char* inputFileName;
     char* samplesToPopFileName;
-    char* threePopList;
+    char* fourPopList;
     char* cmd;
     char* outBaseName;
 } PrivateDConfig_t;
