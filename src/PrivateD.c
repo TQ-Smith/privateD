@@ -36,15 +36,15 @@ void bootstrap(BlockList_t* blockList, int replicates) {
         double denom = 0;
         for (int j = 0; j < blockList -> numBlocks; j++) {
             int randomBlock = blockList -> numBlocks * (double) gsl_rng_uniform(r);
-            num += blocks[randomBlock] -> num;
-            denom += blocks[randomBlock] -> denom;
+            num += blocks[randomBlock] -> numeratorPrivateD;
+            denom += blocks[randomBlock] -> denominatorPrivateD;
         }
         dis[i] = num / denom;
     }
 
     int numGreater = 1;
     for (int i = 0; i < replicates; i++) {
-        if (fabs(blockList -> num / blockList -> denom) >= fabs(dis[i]))
+        if (fabs(blockList -> numeratorPrivateD / blockList -> denominatorPrivateD) >= fabs(dis[i]))
             numGreater++;
     }
     blockList -> p = numGreater / (double) (replicates + 1);
@@ -67,10 +67,10 @@ void weighted_block_jackknife(BlockList_t* blocks) {
     double sum = 0;
     int n = blocks -> numHaps;
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
-        double dropped = (blocks -> num - temp -> num) /  (blocks -> denom - temp -> denom);
+        double dropped = (blocks -> numeratorPrivateD - temp -> numeratorPrivateD) /  (blocks -> denominatorPrivateD - temp -> denominatorPrivateD);
         sum += (n - temp -> numHaps) * dropped / (double) n;
     }
-    double est = blocks -> num / (double) blocks -> denom;
+    double est = blocks -> numeratorPrivateD / (double) blocks -> denominatorPrivateD;
 
     // Our jackknife estimator.
     double jack = blocks -> numBlocks * est - sum;
@@ -79,7 +79,7 @@ void weighted_block_jackknife(BlockList_t* blocks) {
     sum = 0;
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
         double h = n / (double) temp -> numHaps;
-        double dropped = (blocks -> num - temp -> num) / (double) (blocks -> denom - temp -> denom);
+        double dropped = (blocks -> numeratorPrivateD - temp -> numeratorPrivateD) / (double) (blocks -> denominatorPrivateD - temp -> denominatorPrivateD);
         double pseudo = h * est - (h - 1) * dropped;
         sum += (pseudo - jack) * (pseudo - jack) / (h - 1);
     }
@@ -109,8 +109,10 @@ void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int samp
         pi13 += exp(log(1 - Q_gji(hapCounts[0][0], hapCounts[0][i + 1], sampleSize)) + log(1 - Q_gji(hapCounts[2][0], hapCounts[2][i + 1], sampleSize)) + log(Q_gji(hapCounts[1][0], hapCounts[1][i + 1], sampleSize)));
         pi23 += exp(log(1 - Q_gji(hapCounts[1][0], hapCounts[1][i + 1], sampleSize)) + log(1 - Q_gji(hapCounts[2][0], hapCounts[2][i + 1], sampleSize)) + log(Q_gji(hapCounts[0][0], hapCounts[0][i + 1], sampleSize)));
     }
-    block -> num += (pi23 - pi13);
-    block -> denom += (pi23 + pi13);
+    block -> pi13 += pi13;
+    block -> pi23 += pi23;
+    block -> numeratorPrivateD += (pi23 - pi13);
+    block -> denominatorPrivateD += (pi23 + pi13);
 }
 
 // Fill hapCounts.
@@ -249,8 +251,10 @@ BlockList_t* privateD(VCFLocusParser_t* vcfFile, HaplotypeEncoder_t* encoder, in
         append_block(globalList, temp);
 
         // Accumulate genome-wide privateD.
-        globalList -> num += temp -> num;
-        globalList -> denom += temp -> denom;
+        globalList -> pi13 += temp -> pi13;
+        globalList -> pi23 += temp -> pi23;
+        globalList -> numeratorPrivateD += temp -> numeratorPrivateD;
+        globalList -> denominatorPrivateD += temp -> denominatorPrivateD;
 
         globalList -> numHaps += temp -> numHaps;
     }

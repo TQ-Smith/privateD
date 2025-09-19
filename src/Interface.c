@@ -147,7 +147,8 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     // We save the long form of the command to output in the header of files.
     kstring_t* cmd = (kstring_t*) calloc(1, sizeof(kstring_t));
     ksprintf(cmd ,"privated ");
-    ksprintf(cmd, "--sampleSize %d ", config -> sampleSize);
+    if (config -> sampleSize != -1)
+        ksprintf(cmd, "--sampleSize %d ", config -> sampleSize);
     ksprintf(cmd, "--blockSize %d ", config -> blockSize);
     ksprintf(cmd, "--haplotypeSize %d ", config -> haplotypeSize);
     ksprintf(cmd, "--MAF %lf ", config -> MAF);

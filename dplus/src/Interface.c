@@ -13,13 +13,13 @@ void print_help() {
     fprintf(stderr, "\n");
     fprintf(stderr, "dplus\n");
     fprintf(stderr, "----------------------\n\n");
-    fprintf(stderr, "Implements D and D+ statistics in sliding window.\n");
+    fprintf(stderr, "Implements D, D+, f_d, and d_f statistics in sliding window.\n");
     fprintf(stderr, "Usage: dplus [options] <inFile.vcf.gz> <sampleToPop.tsv> <pop1>,<pop2>,<pop3>\n\n");
     fprintf(stderr, "<inFile.vcf.gz>                    The input VCF file.\n");
     fprintf(stderr, "<sampleToPop.tsv>                  Tab seperate file associating each sample with a population.\n");
     fprintf(stderr, "<pop1>,<pop2>,<pop3>,<pop4>        Names of the four populations to test.\n\n");
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "    -b,--blockSize         INT         Block size for weighted jackknife.\n");
+    fprintf(stderr, "    -b,--blockSize         INT         Block size for sliding window.\n");
     fprintf(stderr, "                                           Default 2 MB.\n");
     fprintf(stderr, "    -m,--MAF               DOUBLE      Biallelic sites with MAF <= DOUBLE are dropped.\n");
     fprintf(stderr, "                                           Default 0; monomorphic sites are dropped.\n");

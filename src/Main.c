@@ -142,20 +142,20 @@ int main (int argc, char *argv[]) {
         if (samplesToLabel[i] != -1) 
             numSamples++;
     
-    fprintf(stderr, "\nBlocking Genome ...\n");
+    // fprintf(stderr, "\nBlocking Genome ...\n");
     // Compute privateD in each block and genome-wide.
     BlockList_t* blocks = privateD(vcfFile, encoder, samplesToLabel, numSamples, config -> sampleSize, config -> blockSize, config -> haplotypeSize);
-    fprintf(stderr, "Finished Blocking Genome ...\n");
+    // fprintf(stderr, "Finished Blocking Genome ...\n");
 
     // Calculate p-values.
     if (config -> replicates > 0) {
-        fprintf(stderr, "\nCalculating Bootstrap ...\n");
+        // fprintf(stderr, "\nCalculating Bootstrap ...\n");
         bootstrap(blocks, config -> replicates);
-        fprintf(stderr, "Finished Bootstrap ...\n");
+        // fprintf(stderr, "Finished Bootstrap ...\n");
     } else {
-        fprintf(stderr, "\nCalculating Weighted Jackknife ...\n");
+        // fprintf(stderr, "\nCalculating Weighted Jackknife ...\n");
         weighted_block_jackknife(blocks);
-        fprintf(stderr, "Finished Weighted Jackknife ...\n");
+        // fprintf(stderr, "Finished Weighted Jackknife ...\n");
     }
 
     // Default is to write to stdout.
@@ -168,18 +168,18 @@ int main (int argc, char *argv[]) {
     }
 
     // Output values.
-    fprintf(stderr, "\nPrinting Output ...\n\n");
+    // fprintf(stderr, "\nPrinting Output ...\n\n");
     fprintf(output, "#%s\n", config -> cmd);
     if (config -> replicates > 0)
         fprintf(output, "#pvalue=%lf\n", blocks -> p);
     else 
         fprintf(output, "#pvalue=%lf,stderr=%lf\n", blocks -> p, blocks -> stder);
-    fprintf(output, "#Block Num\tBlock Num on Chr\tChromosome\tStart Position\tEnd Position\tNum Haps\tDenom\tprivateD\n");
+    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Haps\tprivateD\n");
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next)
-        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%.1lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> denom, temp -> num / temp -> denom);
-    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%.1lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> denom, blocks -> num / blocks -> denom);
-    fprintf(stderr, "Finished Printing Output ...\n\n");
-    fprintf(stderr, "Done!\n");
+        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> numeratorPrivateD / temp -> denominatorPrivateD);
+    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> numeratorPrivateD / blocks -> denominatorPrivateD);
+    // fprintf(stderr, "Finished Printing Output ...\n\n");
+    // fprintf(stderr, "Done!\n");
 
     // Free all used memory.
     if (config -> outBaseName != NULL)

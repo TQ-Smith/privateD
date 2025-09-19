@@ -18,8 +18,10 @@ typedef struct Block {
     int numHaps;
 
     // Block private alleles.
-    double num;
-    double denom;
+    double pi23;
+    double pi13;
+    double numeratorPrivateD;
+    double denominatorPrivateD;
     double p;
 
     struct Block* next;
@@ -31,8 +33,10 @@ typedef struct BlockList {
     int sampleSize;
     
     // Global private alleles.
-    double num;
-    double denom;
+    double pi23;
+    double pi13;
+    double numeratorPrivateD;
+    double denominatorPrivateD;
     double p;
     int numHaps;
 
