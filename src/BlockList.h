@@ -18,6 +18,7 @@ typedef struct Block {
     int numHaps;
 
     // Block private alleles.
+    //  Redundant info but makes it easier.
     double pi23;
     double pi13;
     double numeratorPrivateD;
@@ -33,6 +34,7 @@ typedef struct BlockList {
     int sampleSize;
     
     // Global private alleles.
+    //  Redundant info but makes it easier.
     double pi23;
     double pi13;
     double numeratorPrivateD;
