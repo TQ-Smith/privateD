@@ -112,7 +112,8 @@ void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int samp
     block -> pi13 += pi13;
     block -> pi23 += pi23;
     block -> numeratorPrivateD += (pi23 - pi13);
-    block -> denominatorPrivateD += (pi23 + pi13);
+    // block -> denominatorPrivateD += (pi23 + pi13);
+    block -> denominatorPrivateD += numUniqueHaps;
     /*
     if (fabs(pi23 - pi13) > EPS) {
         if (pi23 > pi13)
@@ -218,7 +219,7 @@ Block_t* get_next_block(
         int minNumLineages = (int) fmin(hapCounts[0][0], fmin(hapCounts[1][0], hapCounts[2][0]));
         if (sampleSize == -1)
             sampleSize = minNumLineages;
-        // Otherwise, if it was set and we do not have the appropriate number of lineages, we skip the haplotype.
+        // Otherwise, if it was set and we do not have the appropriate number of lineages, we skip the block.
         else if (sampleSize > minNumLineages)
             continue;
 
