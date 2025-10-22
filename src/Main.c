@@ -174,10 +174,10 @@ int main (int argc, char *argv[]) {
         fprintf(output, "#pvalue=%lf\n", blocks -> p);
     else 
         fprintf(output, "#pvalue=%lf,stderr=%lf\n", blocks -> p, blocks -> stder);
-    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Haps\tpi23\tpi13\tprivateD\n");
+    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Haps\tNumerator\tDenominator\tprivateD\n");
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next)
-        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> pi23, temp -> pi13, temp -> numeratorPrivateD / temp -> denominatorPrivateD);
-    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> pi23, blocks -> pi13, blocks -> numeratorPrivateD / blocks -> denominatorPrivateD);
+        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> numeratorPrivateD, temp ->  denominatorPrivateD, temp -> numeratorPrivateD / temp -> denominatorPrivateD);
+    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> numeratorPrivateD, blocks -> denominatorPrivateD, blocks -> numeratorPrivateD / blocks -> denominatorPrivateD);
     // fprintf(stderr, "Finished Printing Output ...\n\n");
     // fprintf(stderr, "Done!\n");
 
