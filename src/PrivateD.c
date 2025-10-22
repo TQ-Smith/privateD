@@ -111,6 +111,9 @@ void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int samp
     }
     block -> pi13 += pi13;
     block -> pi23 += pi23;
+    block -> numeratorPrivateD += (pi23 - pi13);
+    block -> denominatorPrivateD += (pi23 + pi13);
+    /*
     if (fabs(pi23 - pi13) > EPS) {
         if (pi23 > pi13)
             block -> numeratorPrivateD += 1.0;
@@ -118,6 +121,7 @@ void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int samp
             block -> numeratorPrivateD -= 1.0;
         block -> denominatorPrivateD += 1;
     }
+    */
 }
 
 // Fill hapCounts.
