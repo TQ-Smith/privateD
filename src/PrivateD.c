@@ -42,12 +42,21 @@ void bootstrap(BlockList_t* blockList, int replicates) {
         dis[i] = num / denom;
     }
 
+    // Calculate pvalue for each block and global.
     int numGreater = 1;
+    for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
+        for (int i = 0; i < replicates; i++) {
+            if (fabs(temp -> numeratorPrivateD / temp -> denominatorPrivateD) >= fabs(dis[i]))
+                numGreater++;
+        }
+        temp -> p = numGreater / (double) replicates;
+    }
+    numGreater = 1;
     for (int i = 0; i < replicates; i++) {
         if (fabs(blockList -> numeratorPrivateD / blockList -> denominatorPrivateD) >= fabs(dis[i]))
             numGreater++;
     }
-    blockList -> p = numGreater / (double) (replicates + 1);
+    blockList -> p = numGreater / (double) replicates;
 
     free(dis);
     free(blocks);
@@ -85,8 +94,12 @@ void weighted_block_jackknife(BlockList_t* blocks) {
     }
     blocks -> stder = sqrt(sum / (double) blocks -> numBlocks);
 
-    // Calculate our pvalue.
+    // Calculate our pvalue for every block and global.
     blocks -> p = get_p_val(est, blocks -> stder);
+    for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next) {
+        est = temp -> numeratorPrivateD / (double) temp -> denominatorPrivateD;
+        temp -> p = get_p_val(est, blocks -> stder);
+    }
 }
 
 // From Szpiech et al 2008.

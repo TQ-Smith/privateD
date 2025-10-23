@@ -11,6 +11,7 @@
 #include "HaplotypeEncoder.h"
 #include "PrivateD.h"
 #include "kstring.h"
+#include <math.h>
 
 // Create a string-to-string hash table.
 KHASH_MAP_INIT_STR(str, int)
@@ -170,14 +171,11 @@ int main (int argc, char *argv[]) {
     // Output values.
     // fprintf(stderr, "\nPrinting Output ...\n\n");
     fprintf(output, "#%s\n", config -> cmd);
-    if (config -> replicates > 0)
-        fprintf(output, "#pvalue=%lf\n", blocks -> p);
-    else 
-        fprintf(output, "#pvalue=%lf,stderr=%lf\n", blocks -> p, blocks -> stder);
-    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Haps\tpi23\tpi13\tprivateD\n");
+    fprintf(output, "#EstimatedAdmixtureProportion=%lf\n", 0.5 * fabs(blocks -> pi23 - blocks -> pi13) / (blocks -> pi23 + blocks -> pi13));
+    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Haps\tNum_Alleles\tprivateD\tpvalue\n");
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next)
-        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> pi23, temp -> pi13, temp -> numeratorPrivateD / temp -> denominatorPrivateD);
-    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> pi23, blocks -> pi13, blocks -> numeratorPrivateD / blocks -> denominatorPrivateD);
+        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> denominatorPrivateD, temp -> numeratorPrivateD / temp -> denominatorPrivateD, temp -> p);
+    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> denominatorPrivateD, blocks -> numeratorPrivateD / blocks -> denominatorPrivateD, blocks -> p);
     // fprintf(stderr, "Finished Printing Output ...\n\n");
     // fprintf(stderr, "Done!\n");
 
