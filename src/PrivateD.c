@@ -122,11 +122,15 @@ void locus_privateD(Block_t* block, int** hapCounts, int numUniqueHaps, int samp
         pi13 += exp(log(1 - Q_gji(hapCounts[0][0], hapCounts[0][i + 1], sampleSize)) + log(1 - Q_gji(hapCounts[2][0], hapCounts[2][i + 1], sampleSize)) + log(Q_gji(hapCounts[1][0], hapCounts[1][i + 1], sampleSize)));
         pi23 += exp(log(1 - Q_gji(hapCounts[1][0], hapCounts[1][i + 1], sampleSize)) + log(1 - Q_gji(hapCounts[2][0], hapCounts[2][i + 1], sampleSize)) + log(Q_gji(hapCounts[0][0], hapCounts[0][i + 1], sampleSize)));
     }
-    block -> pi13 += pi13;
-    block -> pi23 += pi23;
-    block -> numeratorPrivateD += (pi23 - pi13);
-    // block -> denominatorPrivateD += (pi23 + pi13);
-    block -> denominatorPrivateD += numUniqueHaps;
+
+    if (fabs(pi13) > EPS || fabs(pi23) > EPS) {
+        block -> pi13 += pi13;
+        block -> pi23 += pi23;
+        block -> numeratorPrivateD += (pi23 - pi13);
+        // block -> denominatorPrivateD += (pi23 + pi13);
+        block -> denominatorPrivateD += numUniqueHaps;
+        block -> numHaps++;
+    }
     /*
     if (fabs(pi23 - pi13) > EPS) {
         if (pi23 > pi13)
@@ -238,7 +242,6 @@ Block_t* get_next_block(
 
         // Use hapCounts for rarefaction calculations.
         locus_privateD(block, hapCounts, numUniqueHaps, sampleSize);
-        block -> numHaps++;
     }
     block -> endCoordinate = encoder -> endCoord;
     return block;

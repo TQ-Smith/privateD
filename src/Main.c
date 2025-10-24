@@ -171,7 +171,6 @@ int main (int argc, char *argv[]) {
     // Output values.
     // fprintf(stderr, "\nPrinting Output ...\n\n");
     fprintf(output, "#%s\n", config -> cmd);
-    fprintf(output, "#EstimatedAdmixtureProportion=%lf\n", 0.5 * fabs(blocks -> pi23 - blocks -> pi13) / (blocks -> pi23 + blocks -> pi13));
     fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Haps\tNum_Alleles\tprivateD\tpvalue\n");
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next)
         fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> denominatorPrivateD, temp -> numeratorPrivateD / temp -> denominatorPrivateD, temp -> p);
