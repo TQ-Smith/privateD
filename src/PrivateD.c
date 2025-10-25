@@ -49,14 +49,14 @@ void bootstrap(BlockList_t* blockList, int replicates) {
             if (fabs(temp -> numeratorPrivateD / temp -> denominatorPrivateD) >= fabs(dis[i]))
                 numGreater++;
         }
-        temp -> p = numGreater / (double) replicates;
+        temp -> p = numGreater / (double) (replicates + 1);
     }
     numGreater = 1;
     for (int i = 0; i < replicates; i++) {
         if (fabs(blockList -> numeratorPrivateD / blockList -> denominatorPrivateD) >= fabs(dis[i]))
             numGreater++;
     }
-    blockList -> p = numGreater / (double) replicates;
+    blockList -> p = numGreater / (double) (replicates + 1);
 
     free(dis);
     free(blocks);
