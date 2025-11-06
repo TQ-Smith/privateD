@@ -11,12 +11,12 @@
 
 void print_help() {
     fprintf(stderr, "\n");
-    fprintf(stderr, "privateD v1.0\n");
+    fprintf(stderr, "DSTAR v1.0\n");
     fprintf(stderr, "----------------------\n\n");
     fprintf(stderr, "Written by T. Quinn Smith\n");
     fprintf(stderr, "Principal Investigator: Zachary A. Szpiech\n");
     fprintf(stderr, "The Pennsylvania State University\n\n");
-    fprintf(stderr, "Usage: privateD [options] <inFile.vcf.gz> <sampleToPop.tsv> <pop1>,<pop2>,<pop3>\n\n");
+    fprintf(stderr, "Usage: dstar [options] <inFile.vcf.gz> <sampleToPop.tsv> <pop1>,<pop2>,<pop3>\n\n");
     fprintf(stderr, "<inFile.vcf.gz>                    The input VCF file.\n");
     fprintf(stderr, "<sampleToPop.tsv>                  Tab seperate file associating each sample with a population.\n");
     fprintf(stderr, "<pop1>,<pop2>,<pop3>               Names of the three populations to test.\n\n");
@@ -28,14 +28,12 @@ void print_help() {
     fprintf(stderr, "                                           Default at each site take number of lineages in smallest population.\n");
     fprintf(stderr, "    -b,--blockSize         INT         Block size for weighted jackknife.\n");
     fprintf(stderr, "                                           Default 2 MB.\n");
-    fprintf(stderr, "    -h,--haplotypeSize     INT         Haplotype size in number of loci.\n");
-    fprintf(stderr, "                                           Default 1.\n");
     fprintf(stderr, "    -m,--MAF               DOUBLE      Biallelic sites with MAF <= DOUBLE are dropped.\n");
     fprintf(stderr, "                                           Default 0; monomorphic sites are dropped.\n");
     fprintf(stderr, "    -n,--missingAF         DOUBLE      Sites with proportion of missing genotype >= DOUBLE are dropped.\n");
     fprintf(stderr, "                                           Default 1.\n");
-    fprintf(stderr, "    -r,--replicates        INT         Report empirical p-values from bootstrap with INT number of replicates.\n");
-    fprintf(stderr, "                                           Default is to report p-values using the weighted jackknife.\n");
+    fprintf(stderr, "    -r,--replicates        INT         Report empirical p-values from bootstrapped distribution with INT number\n");
+    fprintf(stderr, "                                           of replicates. To not run bootstrap, set to 0.\n");
     fprintf(stderr, "    -o,--out               STR         The output file basename.\n");
     fprintf(stderr, "                                           Default stdout.\n");
     fprintf(stderr, "\n");
@@ -45,7 +43,6 @@ void print_help() {
 static ko_longopt_t long_options[] = {
     {"sampleSize",      ko_required_argument,         'g'},
     {"blockSize",       ko_required_argument,         'b'},
-    {"haplotypeSize",   ko_required_argument,         'h'},
     {"MAF",             ko_required_argument,         'm'},
     {"missingAF",       ko_required_argument,         'n'},
     {"replicates",      ko_required_argument,         'r'},
@@ -54,17 +51,13 @@ static ko_longopt_t long_options[] = {
 };
 
 // Check that user supplied values are valid.
-int check_configuration(PrivateDConfig_t* config) {
+int check_configuration(DSTARConfig_t* config) {
     if (config -> replicates < 0) {
         fprintf(stderr, "Number of replicates must be and integer >= 1. Exiting!\n");
         return -1;
     }
     if (config -> blockSize < 1) {
         fprintf(stderr, "--blockSize must be given an integer >= 1. Exiting!\n");
-        return -1;
-    }
-    if (config -> haplotypeSize < 1) {
-        fprintf(stderr, "-haplotypeSize must be given an integer >= 1. Exiting!\n");
         return -1;
     }
     if (config -> MAF < 0 || config -> MAF >= 1) {
@@ -86,9 +79,9 @@ int check_configuration(PrivateDConfig_t* config) {
     return 0;
 }
 
-PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
+DSTARConfig_t* init_dstar_config(int argc, char* argv[]) {
 
-    const char *opt_str = "g:b:h:m:n:r:o:";
+    const char *opt_str = "g:b:m:n:r:o:";
     ketopt_t options = KETOPT_INIT;
     int c;
 
@@ -100,9 +93,8 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 	}
 
     // Set defaults.
-    PrivateDConfig_t* config = calloc(1, sizeof(PrivateDConfig_t));
+    DSTARConfig_t* config = calloc(1, sizeof(DSTARConfig_t));
     config -> sampleSize = -1;
-    config -> haplotypeSize = 1;
     config -> blockSize = 2000000;
     config -> MAF = 0;
     config -> missingAF = 1;
@@ -119,7 +111,6 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
         switch (c) {
             case 'g': config -> sampleSize = (int) strtol(options.arg, (char**) NULL, 10); break;
             case 'b': config -> blockSize = (int) strtol(options.arg, (char**) NULL, 10); break;
-            case 'h': config -> haplotypeSize = (int) strtol(options.arg, (char**) NULL, 10); break;
             case 'm': config -> MAF = (double) strtod(options.arg, (char**) NULL); break;
             case 'n': config -> missingAF = (double) strtod(options.arg, (char**) NULL); break;
             case 'r': config -> replicates = (int) strtol(options.arg, (char**) NULL, 10); break;
@@ -130,7 +121,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     // If the last three files were not given, then exit.
     if (argc - options.ind != 3) {
         fprintf(stderr, "Incomplete arguments. Exiting!\n");
-        destroy_privated_config(config);
+        destroy_dstar_config(config);
         return NULL;
     }
 
@@ -140,21 +131,19 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 
     // Check configuration.
     if (check_configuration(config) != 0) {
-        destroy_privated_config(config);
+        destroy_dstar_config(config);
         return NULL;
     }
 
     // We save the long form of the command to output in the header of files.
     kstring_t* cmd = (kstring_t*) calloc(1, sizeof(kstring_t));
-    ksprintf(cmd ,"privated ");
+    ksprintf(cmd ,"dstar ");
     if (config -> sampleSize != -1)
         ksprintf(cmd, "--sampleSize %d ", config -> sampleSize);
     ksprintf(cmd, "--blockSize %d ", config -> blockSize);
-    ksprintf(cmd, "--haplotypeSize %d ", config -> haplotypeSize);
     ksprintf(cmd, "--MAF %lf ", config -> MAF);
     ksprintf(cmd, "--missingAF %lf ", config -> missingAF);
-    if (config -> replicates > 0)
-        ksprintf(cmd, "--replicates %d ", config -> replicates);
+    ksprintf(cmd, "--replicates %d ", config -> replicates);
     ksprintf(cmd, "%s ", config -> inputFileName);
     ksprintf(cmd, "%s ", config -> samplesToPopFileName);
     ksprintf(cmd, "%s", config -> threePopList);
@@ -164,7 +153,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     return config;
 }
 
-void destroy_privated_config(PrivateDConfig_t* config) {
+void destroy_dstar_config(DSTARConfig_t* config) {
     if (config == NULL)
         return;
     if (config -> inputFileName != NULL)

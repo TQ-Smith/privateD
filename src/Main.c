@@ -8,8 +8,8 @@
 
 #include "Interface.h"
 #include "VCFLocusParser.h"
-#include "HaplotypeEncoder.h"
-#include "PrivateD.h"
+#include "DSTAR.h"
+#include "khash.h"
 #include "kstring.h"
 #include <math.h>
 
@@ -118,22 +118,20 @@ int main (int argc, char *argv[]) {
     }
 
     // Get configuration from user and exit if error.
-    PrivateDConfig_t* config = init_privated_config(argc, argv);
+    DSTARConfig_t* config = init_dstar_config(argc, argv);
     if (config == NULL)
         return -1;
 
     // Create the VCF parser and haplotype encoer.
     VCFLocusParser_t* vcfFile = init_vcf_locus_parser(config -> inputFileName, config -> MAF, config -> missingAF, true);
-    HaplotypeEncoder_t* encoder = init_haplotype_encoder(vcfFile -> numSamples);
 
     // Associate the index of a sample in the VCF file with a population number 1,2,3. 
     //  Samples not used are marked with -1.
     int* samplesToLabel = labelSamples(vcfFile -> sampleNames, vcfFile -> numSamples, config -> samplesToPopFileName, config -> threePopList);
     if (samplesToLabel == NULL) {
         fprintf(stderr, "Improper formatting to assign samples to populations. Exiting!\n");
-        destroy_privated_config(config);
+        destroy_dstar_config(config);
         destroy_vcf_locus_parser(vcfFile);
-        destroy_haplotype_encoder(encoder);
         return -1;
     }
 
@@ -145,25 +143,18 @@ int main (int argc, char *argv[]) {
     
     // fprintf(stderr, "\nBlocking Genome ...\n");
     // Compute privateD in each block and genome-wide.
-    BlockList_t* blocks = privateD(vcfFile, encoder, samplesToLabel, numSamples, config -> sampleSize, config -> blockSize, config -> haplotypeSize);
+    BlockList_t* blocks = dstar(vcfFile, samplesToLabel, numSamples, config -> sampleSize, config -> blockSize);
     // fprintf(stderr, "Finished Blocking Genome ...\n");
 
-    // Calculate p-values.
-    if (config -> replicates > 0) {
-        // fprintf(stderr, "\nCalculating Bootstrap ...\n");
-        bootstrap(blocks, config -> replicates);
-        // fprintf(stderr, "Finished Bootstrap ...\n");
-    } else {
-        // fprintf(stderr, "\nCalculating Weighted Jackknife ...\n");
-        weighted_block_jackknife(blocks);
-        // fprintf(stderr, "Finished Weighted Jackknife ...\n");
-    }
+    // Execute bootstrap if user entered number of replicates.
+    if (config -> replicates > 0)
+        bootstrap(blocks, config -> replicates); 
 
     // Default is to write to stdout.
     FILE* output = stdout;
     if (config -> outBaseName != NULL) {
         kstring_t* out = calloc(1, sizeof(kstring_t));
-        ksprintf(out, "%s%s", config -> outBaseName, "_privateD.tsv");
+        ksprintf(out, "%s%s", config -> outBaseName, "_dstar.tsv");
         output = fopen(out -> s, "w");
         free(out -> s); free(out);
     }
@@ -171,10 +162,10 @@ int main (int argc, char *argv[]) {
     // Output values.
     // fprintf(stderr, "\nPrinting Output ...\n\n");
     fprintf(output, "#%s\n", config -> cmd);
-    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Haps\tNum_Alleles\tprivateD\tpvalue\n");
+    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Loci\talpha\tDSTAR\tPValue\n");
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next)
-        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> denominatorPrivateD, temp -> numeratorPrivateD / temp -> denominatorPrivateD, temp -> p);
-    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> denominatorPrivateD, blocks -> numeratorPrivateD / blocks -> denominatorPrivateD, blocks -> p);
+        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numLoci, temp -> denominatorDSTAR, temp -> numeratorDSTAR / temp -> denominatorDSTAR, temp -> p);
+    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numLoci, blocks -> denominatorDSTAR, blocks -> numeratorDSTAR / blocks -> denominatorDSTAR, blocks -> p);
     // fprintf(stderr, "Finished Printing Output ...\n\n");
     // fprintf(stderr, "Done!\n");
 
@@ -182,9 +173,8 @@ int main (int argc, char *argv[]) {
     if (config -> outBaseName != NULL)
         fclose(output);
     free(samplesToLabel);
-    destroy_privated_config(config);
+    destroy_dstar_config(config);
     destroy_vcf_locus_parser(vcfFile);
-    destroy_haplotype_encoder(encoder);
     destroy_block_list(blocks);
 
     return 0;

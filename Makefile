@@ -1,35 +1,32 @@
 
 # File: Makefile
-# Date: 
+# Date: 6 November 2025
 # Author: T. Quinn Smith
 # Principal Investigator: Dr. Zachary A. Szpiech
-# Purpose: Build privateD.
+# Purpose: Build DSTAR.
 
 CC?=gcc
 CFLAGS = -c -Wall -g -I lib
 LFLAGS = -g -o
 
-bin/privateD: lib src
+bin/dstar: lib src
 	mkdir -p bin
-	$(CC) $(LFLAGS) bin/privateD src/*.o lib/*.o lib/gsl/*.o -lz -lm
+	$(CC) $(LFLAGS) bin/dstar src/*.o lib/*.o lib/gsl/*.o -lz -lm
 
 .PHONY: src
 src: src/Main.o 
 
-src/Main.o: src/Interface.o src/HaplotypeEncoder.o src/PrivateD.o
+src/Main.o: src/Interface.o src/VCFLocusParser.o src/DSTAR.o
 	$(CC) $(CFLAGS) src/Main.c -o src/Main.o
 
 src/Interface.o:
 	$(CC) $(CFLAGS) src/Interface.c -o src/Interface.o
 
-src/PrivateD.o: src/BlockList.o
-	$(CC) $(CFLAGS) -DHAVE_INLINE src/PrivateD.c -o src/PrivateD.o
+src/DSTAR.o: src/BlockList.o
+	$(CC) $(CFLAGS) -DHAVE_INLINE src/DSTAR.c -o src/DSTAR.o
 
 src/BlockList.o:
 	$(CC) $(CFLAGS) src/BlockList.c -o src/BlockList.o
-
-src/HaplotypeEncoder.o: src/VCFLocusParser.o
-	$(CC) $(CFLAGS) src/HaplotypeEncoder.c -o src/HaplotypeEncoder.o
 
 src/VCFLocusParser.o:
 	$(CC) $(CFLAGS) src/VCFLocusParser.c -o src/VCFLocusParser.o

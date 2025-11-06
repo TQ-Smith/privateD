@@ -148,10 +148,10 @@ int main (int argc, char *argv[]) {
     
     // Output values.
     fprintf(output, "#%s\n", config -> cmd);
-    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Loci\tf_d\td_f\tD\tD+\n");
+    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Loci\tf_d\td_f\tD\tD+\tNuclDiversity\n");
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next)
-        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> fdDenom == 0 ? NAN : temp -> fdNum / temp -> fdDenom, temp -> dfDenom == 0 ? NAN : temp -> dfNum / temp -> dfDenom, temp -> dDenom == 0 ? NAN : temp -> dNum / (double) temp -> dDenom, temp -> dplusDenom == 0 ? NAN : temp -> dplusNum / (double) temp -> dplusDenom);
-    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> fdDenom == 0 ? NAN : blocks -> fdNum / blocks -> fdDenom, blocks -> dfDenom == 0 ? NAN : blocks -> dfNum / blocks -> dfDenom, blocks -> dNum / (double) blocks -> dDenom, blocks -> dplusNum / (double) blocks -> dplusDenom);
+        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> fdDenom == 0 ? NAN : temp -> fdNum / temp -> fdDenom, temp -> dfDenom == 0 ? NAN : temp -> dfNum / temp -> dfDenom, temp -> dDenom == 0 ? NAN : temp -> dNum / (double) temp -> dDenom, temp -> dplusDenom == 0 ? NAN : temp -> dplusNum / (double) temp -> dplusDenom, temp -> nucleotideDiversity / (double) temp -> numHaps);
+    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> fdDenom == 0 ? NAN : blocks -> fdNum / blocks -> fdDenom, blocks -> dfDenom == 0 ? NAN : blocks -> dfNum / blocks -> dfDenom, blocks -> dNum / (double) blocks -> dDenom, blocks -> dplusNum / (double) blocks -> dplusDenom, blocks -> nucleotideDiversity / (double) blocks -> numHaps);
 
     // Free all used memory.
     if (config -> outBaseName != NULL)

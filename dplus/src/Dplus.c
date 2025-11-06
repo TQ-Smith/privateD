@@ -92,6 +92,10 @@ Block_t* get_next_block(
         block -> dfNum += (ABBA - BABA);
         block -> dfDenom += (ABBA + BBAA + BABA + BBAA);
 
+        // Calculate nucleotide diversity.
+        int total = alleleCounts[0][0] + alleleCounts[1][0] + alleleCounts[2][0];
+        block -> nucleotideDiversity += 2 * (alleleCounts[0][1] + alleleCounts[1][1] + alleleCounts[2][1]) * (alleleCounts[0][2] + alleleCounts[1][2] + alleleCounts[2][2]) / (total * (total -1));
+
         block -> numHaps++;
     }
     block -> endCoordinate = coord;
@@ -140,6 +144,7 @@ BlockList_t* dplus(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
         globalList -> fdDenom += temp -> fdDenom;
         globalList -> dfNum += temp -> dfNum;
         globalList -> dfDenom += temp -> dfDenom;
+        globalList -> nucleotideDiversity += globalList -> nucleotideDiversity;
 
         globalList -> numHaps += temp -> numHaps;
 

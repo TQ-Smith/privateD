@@ -13,7 +13,8 @@ Block_t* init_block(char* chrom, int startCoordinate) {
     Block_t* block = calloc(1, sizeof(Block_t));
     block -> chrom = strdup(chrom);
     block -> startCoordinate = startCoordinate;
-    block -> numHaps = 0;
+    block -> numLoci = 0;
+    block -> p = -1;
     block -> next = NULL;
     return block;
 }
@@ -24,7 +25,7 @@ BlockList_t* init_block_list(int sampleSize) {
     blockList -> numBlocks = 0;
     blockList -> head = NULL;
     blockList -> tail = NULL;
-    blockList -> numHaps = 0;
+    blockList -> numLoci = 0;
     blockList -> stder = 0;
     return blockList;
 }

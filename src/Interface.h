@@ -11,10 +11,9 @@
 #include <stdio.h>
 #include <string.h>
 
-// All the possible values that define a run of privateD.
+// All the possible values that define a run of DSTAR.
 typedef struct {
     int sampleSize;
-    int haplotypeSize;
     int blockSize;
     double MAF;
     double missingAF;
@@ -24,12 +23,12 @@ typedef struct {
     char* threePopList;
     char* cmd;
     char* outBaseName;
-} PrivateDConfig_t;
+} DSTARConfig_t;
 
 // Parse commnad line arguments.
-PrivateDConfig_t* init_privated_config(int argc, char* argv[]);
+DSTARConfig_t* init_dstar_config(int argc, char* argv[]);
 
-void destroy_privated_config(PrivateDConfig_t* config);
+void destroy_dstar_config(DSTARConfig_t* config);
 
 void print_help();
 

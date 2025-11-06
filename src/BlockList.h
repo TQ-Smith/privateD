@@ -15,14 +15,14 @@ typedef struct Block {
     char* chrom;
     int startCoordinate;
     int endCoordinate;
-    int numHaps;
+    int numLoci;
 
     // Block private alleles.
     //  Redundant info but makes it easier.
     double pi23;
     double pi13;
-    double numeratorPrivateD;
-    double denominatorPrivateD;
+    double numeratorDSTAR;
+    double denominatorDSTAR;
     double p;
 
     struct Block* next;
@@ -37,10 +37,10 @@ typedef struct BlockList {
     //  Redundant info but makes it easier.
     double pi23;
     double pi13;
-    double numeratorPrivateD;
-    double denominatorPrivateD;
+    double numeratorDSTAR;
+    double denominatorDSTAR;
     double p;
-    int numHaps;
+    int numLoci;
 
     int numBlocks;
     Block_t* head;

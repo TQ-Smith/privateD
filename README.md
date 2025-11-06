@@ -1,8 +1,8 @@
-# privateD v1.0
+# DSTAR v1.0
 
 ## Manual
 
-The manual can be found at [https://github.com/TQ-Smith/privateD/wiki].
+The manual can be found at [https://github.com/TQ-Smith/DSTAR/wiki].
 
 ## License
 
