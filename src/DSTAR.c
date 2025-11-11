@@ -125,7 +125,7 @@ void locus_dstar(Block_t* block, int** alleleCounts, int numAlleles, int sampleS
     for (int i = 0; i < numAlleles; i++) {
         pi13 += exp(log(1 - Q_gji(alleleCounts[0][0], alleleCounts[0][i + 1], sampleSize)) + log(1 - Q_gji(alleleCounts[2][0], alleleCounts[2][i + 1], sampleSize)) + log(Q_gji(alleleCounts[1][0], alleleCounts[1][i + 1], sampleSize)));
         pi23 += exp(log(1 - Q_gji(alleleCounts[1][0], alleleCounts[1][i + 1], sampleSize)) + log(1 - Q_gji(alleleCounts[2][0], alleleCounts[2][i + 1], sampleSize)) + log(Q_gji(alleleCounts[0][0], alleleCounts[0][i + 1], sampleSize)));
-        alpha += 1 - Q_gji(totalLineages, alleleCounts[0][i + 1] + alleleCounts[1][i + 1] + alleleCounts[2][i + 2], sampleSize);
+        alpha += 1 - Q_gji(totalLineages, alleleCounts[0][i + 1] + alleleCounts[1][i + 1] + alleleCounts[2][i + 1], sampleSize);
     }
 
     if (fabs(pi13) > EPS || fabs(pi23) > EPS) {
