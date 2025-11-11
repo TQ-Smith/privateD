@@ -45,6 +45,7 @@ void bootstrap(BlockList_t* blockList, int replicates) {
     // Calculate pvalue for each block and global.
     int numGreater = 1;
     for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
+        numGreater = 1;
         for (int i = 0; i < replicates; i++) {
             if (fabs(temp -> numeratorDSTAR / temp -> denominatorDSTAR) >= fabs(dis[i]))
                 numGreater++;
@@ -176,7 +177,7 @@ Block_t* get_next_block(
                     alleleCounts[samplesToLabel[i] - 1][0]++;
                 }
                 if (RIGHT_ALLELE(loci[i]) != numAlleles) {
-                    alleleCounts[samplesToLabel[i] - 1][RIGHT_ALLELE(loci[i]) + 1]++;
+                    alleleCounts[samplesToLabel[i] - 1][(int) (RIGHT_ALLELE(loci[i])) + 1]++;
                     alleleCounts[samplesToLabel[i] - 1][0]++;
                 }
             }
