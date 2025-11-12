@@ -21,7 +21,6 @@
 // Returns: BlockList_t*, the list of genome blocks.
 BlockList_t* dplus(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSamples, int blockSize);
 
-// Compute the weighted jackknife pvalues for global and all blocks.
-// void weighted_block_jackknife(BlockList_t* blockList);
+void bootstrap(BlockList_t* blockList, int replicates);
 
 #endif

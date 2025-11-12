@@ -137,6 +137,10 @@ int main (int argc, char *argv[]) {
     // Compute dplus in each block and genome-wide.
     BlockList_t* blocks = dplus(vcfFile, samplesToLabel, vcfFile -> numSamples, config -> blockSize);
 
+    // Execute bootstrap if user entered number of replicates.
+    if (config -> replicates > 0)
+        bootstrap(blocks, config -> replicates); 
+
     // Default is to write to stdout.
     FILE* output = stdout;
     if (config -> outBaseName != NULL) {
@@ -148,10 +152,10 @@ int main (int argc, char *argv[]) {
     
     // Output values.
     fprintf(output, "#%s\n", config -> cmd);
-    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Loci\tf_d\td_f\tD\tD+\tNuclDiversity\n");
+    fprintf(output, "#Block_Num\tBlock_Num_on_Chr\tChromosome\tStart_Position\tEnd_Position\tNum_Loci\tf_d\td_f\tD\tD+\tNuclDiv\tDpval\tD+pval\n");
     for (Block_t* temp = blocks -> head; temp != NULL; temp = temp -> next)
-        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> fdDenom == 0 ? NAN : temp -> fdNum / temp -> fdDenom, temp -> dfDenom == 0 ? NAN : temp -> dfNum / temp -> dfDenom, temp -> dDenom == 0 ? NAN : temp -> dNum / (double) temp -> dDenom, temp -> dplusDenom == 0 ? NAN : temp -> dplusNum / (double) temp -> dplusDenom, temp -> nucleotideDiversity / (double) temp -> numHaps);
-    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> fdDenom == 0 ? NAN : blocks -> fdNum / blocks -> fdDenom, blocks -> dfDenom == 0 ? NAN : blocks -> dfNum / blocks -> dfDenom, blocks -> dNum / (double) blocks -> dDenom, blocks -> dplusNum / (double) blocks -> dplusDenom, blocks -> nucleotideDiversity / (double) blocks -> numHaps);
+        fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", temp -> blockNum, temp -> blockNumOnChrom, temp -> chrom, temp -> startCoordinate, temp -> endCoordinate, temp -> numHaps, temp -> fdDenom == 0 ? NAN : temp -> fdNum / temp -> fdDenom, temp -> dfDenom == 0 ? NAN : temp -> dfNum / temp -> dfDenom, temp -> dDenom == 0 ? NAN : temp -> dNum / (double) temp -> dDenom, temp -> dplusDenom == 0 ? NAN : temp -> dplusNum / (double) temp -> dplusDenom, temp -> nucleotideDiversity / (double) temp -> numHaps, temp -> dP, temp -> dplusP);
+    fprintf(output, "%d\t%d\t%s\t%d\t%d\t%d\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 0, 0, "Global", 0, 0, blocks -> numHaps, blocks -> fdDenom == 0 ? NAN : blocks -> fdNum / blocks -> fdDenom, blocks -> dfDenom == 0 ? NAN : blocks -> dfNum / blocks -> dfDenom, blocks -> dNum / (double) blocks -> dDenom, blocks -> dplusNum / (double) blocks -> dplusDenom, blocks -> nucleotideDiversity / (double) blocks -> numHaps, blocks -> dP, blocks -> dplusP);
 
     // Free all used memory.
     if (config -> outBaseName != NULL)

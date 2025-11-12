@@ -28,6 +28,9 @@ typedef struct Block {
     double dfDenom;
     double nucleotideDiversity;
 
+    double dP;
+    double dplusP;
+
     struct Block* next;
 } Block_t;
 
@@ -46,6 +49,9 @@ typedef struct BlockList {
     double dfNum;
     double dfDenom;
     double nucleotideDiversity;
+
+    double dP;
+    double dplusP;
 
     int numHaps;
 

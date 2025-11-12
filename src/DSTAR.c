@@ -35,7 +35,7 @@ void bootstrap(BlockList_t* blockList, int replicates) {
         double num = 0;
         double denom = 0;
         for (int j = 0; j < blockList -> numBlocks; j++) {
-            int randomBlock = blockList -> numBlocks * (double) gsl_rng_uniform(r);
+            int randomBlock = (int) (blockList -> numBlocks * (double) gsl_rng_uniform(r));
             num += blocks[randomBlock] -> numeratorDSTAR;
             denom += blocks[randomBlock] -> denominatorDSTAR;
         }
@@ -43,21 +43,21 @@ void bootstrap(BlockList_t* blockList, int replicates) {
     }
 
     // Calculate pvalue for each block and global.
-    int numGreater = 1;
+    int numGreater;
     for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
-        numGreater = 1;
+        numGreater = 0;
         for (int i = 0; i < replicates; i++) {
-            if (fabs(temp -> numeratorDSTAR / temp -> denominatorDSTAR) >= fabs(dis[i]))
+            if (temp -> numeratorDSTAR / temp -> denominatorDSTAR > dis[i])
                 numGreater++;
         }
-        temp -> p = numGreater / (double) (replicates + 1);
+        temp -> p = 1 - 2 * fabs(0.5 - numGreater / (double) replicates);
     }
-    numGreater = 1;
+    numGreater = 0;
     for (int i = 0; i < replicates; i++) {
-        if (fabs(blockList -> numeratorDSTAR / blockList -> denominatorDSTAR) >= fabs(dis[i]))
+        if (blockList -> numeratorDSTAR / blockList -> denominatorDSTAR > dis[i])
             numGreater++;
     }
-    blockList -> p = numGreater / (double) (replicates + 1);
+    blockList -> p = 1 - 2 * fabs(0.5 - numGreater / (double) replicates);
 
     free(dis);
     free(blocks);
@@ -126,7 +126,7 @@ void locus_dstar(Block_t* block, int** alleleCounts, int numAlleles, int sampleS
     for (int i = 0; i < numAlleles; i++) {
         pi13 += exp(log(1 - Q_gji(alleleCounts[0][0], alleleCounts[0][i + 1], sampleSize)) + log(1 - Q_gji(alleleCounts[2][0], alleleCounts[2][i + 1], sampleSize)) + log(Q_gji(alleleCounts[1][0], alleleCounts[1][i + 1], sampleSize)));
         pi23 += exp(log(1 - Q_gji(alleleCounts[1][0], alleleCounts[1][i + 1], sampleSize)) + log(1 - Q_gji(alleleCounts[2][0], alleleCounts[2][i + 1], sampleSize)) + log(Q_gji(alleleCounts[0][0], alleleCounts[0][i + 1], sampleSize)));
-        alpha += 1 - Q_gji(totalLineages, alleleCounts[0][i + 1] + alleleCounts[1][i + 1] + alleleCounts[2][i + 1], sampleSize);
+        alpha += (1 - Q_gji(totalLineages, alleleCounts[0][i + 1] + alleleCounts[1][i + 1] + alleleCounts[2][i + 1], sampleSize));
     }
 
     if (fabs(pi13) > EPS || fabs(pi23) > EPS) {
@@ -172,12 +172,12 @@ Block_t* get_next_block(
 
         for (int i = 0; i < numSamples; i++) {
             if (samplesToLabel[i] != -1) {
-                if (LEFT_ALLELE(loci[i]) != numAlleles) {
-                    alleleCounts[samplesToLabel[i] - 1][(int) (LEFT_ALLELE(loci[i])) + 1]++;
+                if (((int) LEFT_ALLELE(loci[i])) != numAlleles) {
+                    alleleCounts[samplesToLabel[i] - 1][((int) (LEFT_ALLELE(loci[i]))) + 1]++;
                     alleleCounts[samplesToLabel[i] - 1][0]++;
                 }
-                if (RIGHT_ALLELE(loci[i]) != numAlleles) {
-                    alleleCounts[samplesToLabel[i] - 1][(int) (RIGHT_ALLELE(loci[i])) + 1]++;
+                if (((int) RIGHT_ALLELE(loci[i])) != numAlleles) {
+                    alleleCounts[samplesToLabel[i] - 1][((int) (RIGHT_ALLELE(loci[i]))) + 1]++;
                     alleleCounts[samplesToLabel[i] - 1][0]++;
                 }
             }

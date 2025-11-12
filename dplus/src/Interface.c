@@ -25,6 +25,8 @@ void print_help() {
     fprintf(stderr, "                                           Default 0; monomorphic sites are dropped.\n");
     fprintf(stderr, "    -n,--missingAF         DOUBLE      Sites with proportion of missing genotype >= DOUBLE are dropped.\n");
     fprintf(stderr, "                                           Default 1.\n");
+    fprintf(stderr, "    -r,--replicates        INT         Report empirical p-values from bootstrapped distribution with INT number\n");
+    fprintf(stderr, "                                           of replicates. Default 10,000. To not run bootstrap, set to 0.\n");
     fprintf(stderr, "    -o,--out               STR         The output file basename.\n");
     fprintf(stderr, "                                           Default stdout.\n");
     fprintf(stderr, "\n");
@@ -35,12 +37,17 @@ static ko_longopt_t long_options[] = {
     {"blockSize",       ko_required_argument,         'b'},
     {"MAF",             ko_required_argument,         'm'},
     {"missingAF",       ko_required_argument,         'n'},
+    {"replicates",      ko_required_argument,         'r'},
     {"out",             ko_required_argument,         'o'},
     {0, 0, 0}
 };
 
 // Check that user supplied values are valid.
 int check_configuration(PrivateDConfig_t* config) {
+    if (config -> replicates < 0) {
+        fprintf(stderr, "Number of replicates must be and integer >= 1. Exiting!\n");
+        return -1;
+    }
     if (config -> blockSize < 1) {
         fprintf(stderr, "--blockSize must be given an integer >= 1. Exiting!\n");
         return -1;
@@ -66,7 +73,7 @@ int check_configuration(PrivateDConfig_t* config) {
 
 PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 
-    const char *opt_str = "b:m:n:o:";
+    const char *opt_str = "b:m:n:r:o:";
     ketopt_t options = KETOPT_INIT;
     int c;
 
@@ -82,6 +89,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     config -> blockSize = 2000000;
     config -> MAF = 0;
     config -> missingAF = 1;
+    config -> replicates = 10000;
     config -> inputFileName = NULL;
     config -> samplesToPopFileName = NULL;
     config -> fourPopList = NULL;
@@ -95,6 +103,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
             case 'b': config -> blockSize = (int) strtol(options.arg, (char**) NULL, 10); break;
             case 'm': config -> MAF = (double) strtod(options.arg, (char**) NULL); break;
             case 'n': config -> missingAF = (double) strtod(options.arg, (char**) NULL); break;
+            case 'r': config -> replicates = (int) strtol(options.arg, (char**) NULL, 10); break;
             case 'o': config -> outBaseName = strdup(options.arg); break;
         }
 	}
@@ -122,6 +131,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     ksprintf(cmd, "--blockSize %d ", config -> blockSize);
     ksprintf(cmd, "--MAF %lf ", config -> MAF);
     ksprintf(cmd, "--missingAF %lf ", config -> missingAF);
+    ksprintf(cmd, "--replicates %d ", config -> replicates);
     ksprintf(cmd, "%s ", config -> inputFileName);
     ksprintf(cmd, "%s ", config -> samplesToPopFileName);
     ksprintf(cmd, "%s", config -> fourPopList);

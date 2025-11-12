@@ -7,6 +7,73 @@
 
 #include "Dplus.h"
 #include <math.h>
+#include <time.h>
+#include "gsl/gsl_rng.h"
+#include "gsl/gsl_randist.h"
+
+void bootstrap(BlockList_t* blockList, int replicates) {
+
+    // Allocate the distribution.
+    double* dDis = calloc(replicates, sizeof(double));
+    double* dplusDis = calloc(replicates, sizeof(double));
+
+    // Allocate our RNG.
+    gsl_rng_env_setup();
+    const gsl_rng_type* T = gsl_rng_default;
+    gsl_rng* r = gsl_rng_alloc(T);
+    gsl_rng_set(r, time(NULL));
+
+    // Array for easy block look up.
+    Block_t** blocks = calloc(blockList -> numBlocks, sizeof(Block_t*));
+    int k = 0;
+    for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next)
+        blocks[k++] = temp;
+
+    // Create our distribution.
+    for (int i = 0; i < replicates; i++) {
+        double dNum = 0, dplusNum = 0;
+        double dDenom = 0, dplusDenom = 0;
+        for (int j = 0; j < blockList -> numBlocks; j++) {
+            int randomBlock = (int) (blockList -> numBlocks * (double) gsl_rng_uniform(r));
+            dNum += blocks[randomBlock] -> dNum;
+            dDenom += blocks[randomBlock] -> dDenom;
+            dplusNum += blocks[randomBlock] -> dplusNum;
+            dplusDenom += blocks[randomBlock] -> dplusDenom;
+        }
+        dDis[i] = dNum / dDenom;
+        dplusDis[i] = dplusNum / dplusDenom;
+    }
+
+    // Calculate pvalue for each block and global.
+    int dNumGreater, dplusNumGreater;
+    for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
+        dNumGreater = 0;
+        dplusNumGreater = 0;
+        for (int i = 0; i < replicates; i++) {
+            if (temp -> dNum / temp -> dDenom > dDis[i])
+                dNumGreater++;
+            if (temp -> dplusNum / temp -> dplusDenom > dplusDis[i])
+                dplusNumGreater++;
+        }
+        temp -> dP = 1 - 2 * fabs(0.5 - dNumGreater / (double) replicates);
+        temp -> dplusP = 1 - 2 * fabs(0.5 - dplusNumGreater / (double) replicates);
+    }
+    dNumGreater = 0;
+    dplusNumGreater = 0;
+    for (int i = 0; i < replicates; i++) {
+        if (blockList -> dNum / blockList -> dDenom > dDis[i])
+            dNumGreater++;
+        if (blockList -> dplusNum / blockList -> dplusDenom > dplusDis[i])
+            dplusNumGreater++;
+    }
+    blockList -> dP = 1 - 2 * fabs(0.5 - dNumGreater / (double) replicates);
+    blockList -> dplusP = 1 - 2 * fabs(0.5 - dplusNumGreater / (double) replicates);
+
+    free(dDis);
+    free(dplusDis);
+    free(blocks);
+    gsl_rng_free(r);
+}
 
 Block_t* get_next_block(
     VCFLocusParser_t* vcfFile, 

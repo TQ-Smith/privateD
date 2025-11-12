@@ -16,6 +16,7 @@ typedef struct {
     int blockSize;
     double MAF;
     double missingAF;
+    int replicates;
     char* inputFileName;
     char* samplesToPopFileName;
     char* fourPopList;
