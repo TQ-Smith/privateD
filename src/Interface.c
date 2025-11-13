@@ -83,7 +83,7 @@ int check_configuration(DSTARConfig_t* config) {
 
 DSTARConfig_t* init_dstar_config(int argc, char* argv[]) {
 
-    const char *opt_str = "g:b:m:n:r:o:";
+    const char *opt_str = "zg:b:m:n:r:o:";
     ketopt_t options = KETOPT_INIT;
     int c;
 

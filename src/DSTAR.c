@@ -60,7 +60,7 @@ void bootstrap(BlockList_t* blockList, int replicates, bool standard) {
         for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
             temp -> p = 1 - pnorm((temp -> numeratorDSTAR / temp -> denominatorDSTAR) / stddev);
         }
-        blockList -> p = 1 - pnorm((blockList -> numeratorDSTAR / blockList -> denominatorDSTAR) / stddev);
+        blockList -> p = 1- pnorm((blockList -> numeratorDSTAR / blockList -> denominatorDSTAR) / stddev);
     } else {
         int numGreater;
         for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
