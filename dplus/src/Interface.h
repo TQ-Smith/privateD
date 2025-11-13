@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 // All the possible values that define a run of privateD.
 typedef struct {
@@ -17,6 +18,7 @@ typedef struct {
     double MAF;
     double missingAF;
     int replicates;
+    bool standard;
     char* inputFileName;
     char* samplesToPopFileName;
     char* fourPopList;

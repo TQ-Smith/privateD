@@ -139,7 +139,7 @@ int main (int argc, char *argv[]) {
 
     // Execute bootstrap if user entered number of replicates.
     if (config -> replicates > 0)
-        bootstrap(blocks, config -> replicates); 
+        bootstrap(blocks, config -> replicates, config -> standard); 
 
     // Default is to write to stdout.
     FILE* output = stdout;

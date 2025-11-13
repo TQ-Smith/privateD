@@ -27,6 +27,7 @@ void print_help() {
     fprintf(stderr, "                                           Default 1.\n");
     fprintf(stderr, "    -r,--replicates        INT         Report empirical p-values from bootstrapped distribution with INT number\n");
     fprintf(stderr, "                                           of replicates. Default 1,000. To not run bootstrap, set to 0.\n");
+    fprintf(stderr, "    -z                                 Calculates p-values according to Z-distribution.\n");
     fprintf(stderr, "    -o,--out               STR         The output file basename.\n");
     fprintf(stderr, "                                           Default stdout.\n");
     fprintf(stderr, "\n");
@@ -39,6 +40,7 @@ static ko_longopt_t long_options[] = {
     {"missingAF",       ko_required_argument,         'n'},
     {"replicates",      ko_required_argument,         'r'},
     {"out",             ko_required_argument,         'o'},
+    {"standard",        ko_no_argument,               'z'},
     {0, 0, 0}
 };
 
@@ -73,7 +75,7 @@ int check_configuration(PrivateDConfig_t* config) {
 
 PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
 
-    const char *opt_str = "b:m:n:r:o:";
+    const char *opt_str = "zb:m:n:r:o:";
     ketopt_t options = KETOPT_INIT;
     int c;
 
@@ -93,6 +95,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     config -> inputFileName = NULL;
     config -> samplesToPopFileName = NULL;
     config -> fourPopList = NULL;
+    config -> standard = false;
     config -> cmd = NULL;
     config -> outBaseName = NULL;
     
@@ -105,6 +108,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
             case 'n': config -> missingAF = (double) strtod(options.arg, (char**) NULL); break;
             case 'r': config -> replicates = (int) strtol(options.arg, (char**) NULL, 10); break;
             case 'o': config -> outBaseName = strdup(options.arg); break;
+            case 'z': config -> standard = true; break;
         }
 	}
 

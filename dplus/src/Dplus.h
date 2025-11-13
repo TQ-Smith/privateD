@@ -21,6 +21,6 @@
 // Returns: BlockList_t*, the list of genome blocks.
 BlockList_t* dplus(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSamples, int blockSize);
 
-void bootstrap(BlockList_t* blockList, int replicates);
+void bootstrap(BlockList_t* blockList, int replicates, bool standard);
 
 #endif

@@ -11,7 +11,11 @@
 #include "gsl/gsl_rng.h"
 #include "gsl/gsl_randist.h"
 
-void bootstrap(BlockList_t* blockList, int replicates) {
+double pnorm(double x) {
+    return 0.5 * (1.0 + erf(x / sqrt(2.0)));
+}
+
+void bootstrap(BlockList_t* blockList, int replicates, bool standard) {
 
     // Allocate the distribution.
     double* dDis = calloc(replicates, sizeof(double));
@@ -45,29 +49,53 @@ void bootstrap(BlockList_t* blockList, int replicates) {
     }
 
     // Calculate pvalue for each block and global.
-    int dNumGreater, dplusNumGreater;
-    for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
+    if (standard) {
+        double meanD = 0, meanDplus = 0;
+        for (int i = 0; i < replicates; i++) {
+            meanD += dDis[i] / replicates;
+            meanDplus += dplusDis[i] / replicates;
+        }
+        double stddevD = 0, stddevDplus = 0;
+        for (int i = 0; i < replicates; i++) {
+            stddevD += (dDis[i] - meanD) * (dDis[i] - meanD);
+            stddevDplus += (dplusDis[i] - meanDplus) * (dplusDis[i] - meanDplus);
+        }
+        stddevD /= (replicates - 1);
+        stddevD = sqrt(stddevD);
+        stddevDplus /= (replicates - 1);
+        stddevDplus = sqrt(stddevDplus);
+
+        for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
+            temp -> dP = 1 - pnorm((temp -> dNum / temp -> dDenom) / stddevD);
+            temp -> dplusP = 1 - pnorm((temp -> dplusNum / temp -> dplusDenom) / stddevDplus);
+        }
+        blockList -> dP = 1- pnorm((blockList -> dNum / blockList -> dDenom) / stddevD);
+        blockList -> dplusP = 1- pnorm((blockList -> dplusNum / blockList -> dplusDenom) / stddevDplus);
+    } else {
+        int dNumGreater, dplusNumGreater;
+        for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
+            dNumGreater = 0;
+            dplusNumGreater = 0;
+            for (int i = 0; i < replicates; i++) {
+                if (temp -> dNum / temp -> dDenom > dDis[i])
+                    dNumGreater++;
+                if (temp -> dplusNum / temp -> dplusDenom > dplusDis[i])
+                    dplusNumGreater++;
+            }
+            temp -> dP = 1 - 2 * fabs(0.5 - dNumGreater / (double) replicates);
+            temp -> dplusP = 1 - 2 * fabs(0.5 - dplusNumGreater / (double) replicates);
+        }
         dNumGreater = 0;
         dplusNumGreater = 0;
         for (int i = 0; i < replicates; i++) {
-            if (temp -> dNum / temp -> dDenom > dDis[i])
+            if (blockList -> dNum / blockList -> dDenom > dDis[i])
                 dNumGreater++;
-            if (temp -> dplusNum / temp -> dplusDenom > dplusDis[i])
+            if (blockList -> dplusNum / blockList -> dplusDenom > dplusDis[i])
                 dplusNumGreater++;
         }
-        temp -> dP = 1 - 2 * fabs(0.5 - dNumGreater / (double) replicates);
-        temp -> dplusP = 1 - 2 * fabs(0.5 - dplusNumGreater / (double) replicates);
+        blockList -> dP = 1 - 2 * fabs(0.5 - dNumGreater / (double) replicates);
+        blockList -> dplusP = 1 - 2 * fabs(0.5 - dplusNumGreater / (double) replicates);
     }
-    dNumGreater = 0;
-    dplusNumGreater = 0;
-    for (int i = 0; i < replicates; i++) {
-        if (blockList -> dNum / blockList -> dDenom > dDis[i])
-            dNumGreater++;
-        if (blockList -> dplusNum / blockList -> dplusDenom > dplusDis[i])
-            dplusNumGreater++;
-    }
-    blockList -> dP = 1 - 2 * fabs(0.5 - dNumGreater / (double) replicates);
-    blockList -> dplusP = 1 - 2 * fabs(0.5 - dplusNumGreater / (double) replicates);
 
     free(dDis);
     free(dplusDis);
