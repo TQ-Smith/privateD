@@ -22,6 +22,6 @@
 BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSamples, int sampleSize, int blockSize);
 
 // Compute the bootstrapped pvalues for global and all blocks.
-void bootstrap(BlockList_t* blockList, int replicates);
+void bootstrap(BlockList_t* blockList, int replicates, bool standard);
 
 #endif

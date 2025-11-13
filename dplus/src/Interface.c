@@ -26,7 +26,7 @@ void print_help() {
     fprintf(stderr, "    -n,--missingAF         DOUBLE      Sites with proportion of missing genotype >= DOUBLE are dropped.\n");
     fprintf(stderr, "                                           Default 1.\n");
     fprintf(stderr, "    -r,--replicates        INT         Report empirical p-values from bootstrapped distribution with INT number\n");
-    fprintf(stderr, "                                           of replicates. Default 10,000. To not run bootstrap, set to 0.\n");
+    fprintf(stderr, "                                           of replicates. Default 1,000. To not run bootstrap, set to 0.\n");
     fprintf(stderr, "    -o,--out               STR         The output file basename.\n");
     fprintf(stderr, "                                           Default stdout.\n");
     fprintf(stderr, "\n");
@@ -89,7 +89,7 @@ PrivateDConfig_t* init_privated_config(int argc, char* argv[]) {
     config -> blockSize = 2000000;
     config -> MAF = 0;
     config -> missingAF = 1;
-    config -> replicates = 10000;
+    config -> replicates = 1000;
     config -> inputFileName = NULL;
     config -> samplesToPopFileName = NULL;
     config -> fourPopList = NULL;

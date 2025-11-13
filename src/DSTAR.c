@@ -13,7 +13,11 @@
 
 #define EPS 1e-8
 
-void bootstrap(BlockList_t* blockList, int replicates) {
+double pnorm(double x) {
+    return 0.5 * (1.0 + erf(x / sqrt(2.0)));
+}
+
+void bootstrap(BlockList_t* blockList, int replicates, bool standard) {
 
     // Allocate the distribution.
     double* dis = calloc(replicates, sizeof(double));
@@ -43,21 +47,37 @@ void bootstrap(BlockList_t* blockList, int replicates) {
     }
 
     // Calculate pvalue for each block and global.
-    int numGreater;
-    for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
+    if (standard) {
+        double mean = 0;
+        for (int i = 0; i < replicates; i++)
+            mean += dis[i] / replicates;
+        double stddev = 0;
+        for (int i = 0; i < replicates; i++)
+            stddev += (dis[i] - mean) * (dis[i] - mean);
+        stddev /= (replicates - 1);
+        stddev = sqrt(stddev);
+
+        for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
+            temp -> p = 1 - pnorm((temp -> numeratorDSTAR / temp -> denominatorDSTAR) / stddev);
+        }
+        blockList -> p = 1 - pnorm((blockList -> numeratorDSTAR / blockList -> denominatorDSTAR) / stddev);
+    } else {
+        int numGreater;
+        for (Block_t* temp = blockList -> head; temp != NULL; temp = temp -> next) {
+            numGreater = 0;
+            for (int i = 0; i < replicates; i++) {
+                if (temp -> numeratorDSTAR / temp -> denominatorDSTAR > dis[i])
+                    numGreater++;
+            }
+            temp -> p = 1 - 2 * fabs(0.5 - numGreater / (double) replicates);
+        }
         numGreater = 0;
         for (int i = 0; i < replicates; i++) {
-            if (temp -> numeratorDSTAR / temp -> denominatorDSTAR > dis[i])
+            if (blockList -> numeratorDSTAR / blockList -> denominatorDSTAR > dis[i])
                 numGreater++;
         }
-        temp -> p = 1 - 2 * fabs(0.5 - numGreater / (double) replicates);
+        blockList -> p = 1 - 2 * fabs(0.5 - numGreater / (double) replicates);
     }
-    numGreater = 0;
-    for (int i = 0; i < replicates; i++) {
-        if (blockList -> numeratorDSTAR / blockList -> denominatorDSTAR > dis[i])
-            numGreater++;
-    }
-    blockList -> p = 1 - 2 * fabs(0.5 - numGreater / (double) replicates);
 
     free(dis);
     free(blocks);
