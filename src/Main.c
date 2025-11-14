@@ -16,14 +16,14 @@
 // Create a string-to-string hash table.
 KHASH_MAP_INIT_STR(str, int)
 
-int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName, char* threePopList) {
+int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName, char* popList) {
     
-    // Check that three population names were supplied.
+    // Check that three/four population names were supplied.
     int n = 0;
-    for (int i = 0; i < strlen(threePopList); i++)
-        if (threePopList[i] == ',')
+    for (int i = 0; i < strlen(popList); i++)
+        if (popList[i] == ',')
             n++;
-    if (n != 2)
+    if (n != 2 && n != 3)
         return NULL;
 
     // The three population names.
@@ -31,14 +31,18 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
     char* first = NULL;
     char* second = NULL;
     char* third = NULL;
+    char* fourth = NULL;
 
     // Get the three population names.
-    tok = strtok(threePopList, ",");
+    tok = strtok(popList, ",");
     first = strdup(tok);
     tok = strtok(NULL, ",");
     second = strdup(tok);
     tok = strtok(NULL, ",");
     third = strdup(tok);
+    tok = strtok(NULL, ",");
+    if (tok != NULL)
+        fourth = strdup(tok);
 
     FILE* samplesToPopFile = fopen(samplesToPopFileName, "r");
 
@@ -62,7 +66,7 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
         // If invalid formatting, free all memory and exit.
         if (numFields != 2) {
             free(line); free(sampleName); free(popName);
-            free(first); free(second); free(third);
+            free(first); free(second); free(third); if (fourth) free(fourth);
             fclose(samplesToPopFile);
             for (k = 0; k < kh_end(h); k++)
                 if (kh_exist(h, k))
@@ -76,6 +80,7 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
         if (strcmp(popName, first) == 0)  {  popLabel = 1;  }
         if (strcmp(popName, second) == 0) {  popLabel = 2;  }
         if (strcmp(popName, third) == 0)  {  popLabel = 3;  }
+        if (fourth != NULL && strcmp(popName, fourth) == 0)  {  popLabel = 4;  }
 
         // Insert into hash table.
         k = kh_put(str, h, sampleName, &absent);
@@ -125,9 +130,9 @@ int main (int argc, char *argv[]) {
     // Create the VCF parser and haplotype encoer.
     VCFLocusParser_t* vcfFile = init_vcf_locus_parser(config -> inputFileName, config -> MAF, config -> missingAF, true);
 
-    // Associate the index of a sample in the VCF file with a population number 1,2,3. 
+    // Associate the index of a sample in the VCF file with a population number 1,2,3,4. 
     //  Samples not used are marked with -1.
-    int* samplesToLabel = labelSamples(vcfFile -> sampleNames, vcfFile -> numSamples, config -> samplesToPopFileName, config -> threePopList);
+    int* samplesToLabel = labelSamples(vcfFile -> sampleNames, vcfFile -> numSamples, config -> samplesToPopFileName, config -> popList);
     if (samplesToLabel == NULL) {
         fprintf(stderr, "Improper formatting to assign samples to populations. Exiting!\n");
         destroy_dstar_config(config);

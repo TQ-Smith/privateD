@@ -138,15 +138,25 @@ double Q_gji(int N_j, int N_ji, int g) {
 }
 
 // Calculate DSTAR at the locus.
-void locus_dstar(Block_t* block, int** alleleCounts, int numAlleles, int sampleSize) {
+void locus_dstar(Block_t* block, int** alleleCounts, int numAlleles, int sampleSize, bool threePops) {
     double pi13 = 0, pi23 = 0, alpha = 0;
     // Total number of lineages.
-    int totalLineages = alleleCounts[0][0] + alleleCounts[1][0] + alleleCounts[2][0];
+    int totalLineages;
+    if (threePops)
+        totalLineages = alleleCounts[0][0] + alleleCounts[1][0] + alleleCounts[2][0];
+    else 
+        totalLineages = alleleCounts[0][0] + alleleCounts[1][0] + alleleCounts[2][0] + alleleCounts[3][0];
     // Calculate the private allelic richness for the two combinations.
     for (int i = 0; i < numAlleles; i++) {
-        pi13 += exp(log(1 - Q_gji(alleleCounts[0][0], alleleCounts[0][i + 1], sampleSize)) + log(1 - Q_gji(alleleCounts[2][0], alleleCounts[2][i + 1], sampleSize)) + log(Q_gji(alleleCounts[1][0], alleleCounts[1][i + 1], sampleSize)));
-        pi23 += exp(log(1 - Q_gji(alleleCounts[1][0], alleleCounts[1][i + 1], sampleSize)) + log(1 - Q_gji(alleleCounts[2][0], alleleCounts[2][i + 1], sampleSize)) + log(Q_gji(alleleCounts[0][0], alleleCounts[0][i + 1], sampleSize)));
-        alpha += (1 - Q_gji(totalLineages, alleleCounts[0][i + 1] + alleleCounts[1][i + 1] + alleleCounts[2][i + 1], sampleSize));
+        if (threePops) {
+            pi13 += exp(log(1 - Q_gji(alleleCounts[0][0], alleleCounts[0][i + 1], sampleSize)) + log(1 - Q_gji(alleleCounts[2][0], alleleCounts[2][i + 1], sampleSize)) + log(Q_gji(alleleCounts[1][0], alleleCounts[1][i + 1], sampleSize)));
+            pi23 += exp(log(1 - Q_gji(alleleCounts[1][0], alleleCounts[1][i + 1], sampleSize)) + log(1 - Q_gji(alleleCounts[2][0], alleleCounts[2][i + 1], sampleSize)) + log(Q_gji(alleleCounts[0][0], alleleCounts[0][i + 1], sampleSize)));
+            alpha += (1 - Q_gji(totalLineages, alleleCounts[0][i + 1] + alleleCounts[1][i + 1] + alleleCounts[2][i + 1], sampleSize));
+        } else {
+            pi13 += exp(log(1 - Q_gji(alleleCounts[0][0], alleleCounts[0][i + 1], sampleSize)) + log(1 - Q_gji(alleleCounts[2][0], alleleCounts[2][i + 1], sampleSize)) + log(Q_gji(alleleCounts[1][0], alleleCounts[1][i + 1], sampleSize)) + log(Q_gji(alleleCounts[3][0], alleleCounts[3][i + 1], sampleSize)));
+            pi23 += exp(log(1 - Q_gji(alleleCounts[1][0], alleleCounts[1][i + 1], sampleSize)) + log(1 - Q_gji(alleleCounts[2][0], alleleCounts[2][i + 1], sampleSize)) + log(Q_gji(alleleCounts[0][0], alleleCounts[0][i + 1], sampleSize)) + log(Q_gji(alleleCounts[3][0], alleleCounts[3][i + 1], sampleSize)));
+            alpha += (1 - Q_gji(totalLineages, alleleCounts[0][i + 1] + alleleCounts[1][i + 1] + alleleCounts[2][i + 1] + alleleCounts[3][i + 1], sampleSize));
+        }
     }
 
     if (fabs(pi13) > EPS || fabs(pi23) > EPS) {
@@ -165,7 +175,8 @@ Block_t* get_next_block(
     int sampleSize, 
     int blockSize,
     int endOfBlock,
-    int** alleleCounts
+    int** alleleCounts,
+    bool threePops
 ) {
 
     if (isEOF(vcfFile))
@@ -186,7 +197,7 @@ Block_t* get_next_block(
         isOnSameChrom = !isEOF(vcfFile) && strcmp(chrom, vcfFile -> nextChrom) == 0;
         
         // Fill alleleCounts.
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++)
             for (int j = 0; j <= numAlleles; j++)
                 alleleCounts[i][j] = 0;
 
@@ -203,8 +214,13 @@ Block_t* get_next_block(
             }
         }
 
-        // If sample size was not set by the user, then we take the min of the three populations.
-        int minNumLineages = (int) fmin(alleleCounts[0][0], fmin(alleleCounts[1][0], alleleCounts[2][0]));
+        // If sample size was not set by the user, then we take the min of the three/four populations.
+        int minNumLineages;
+        if (threePops) 
+            minNumLineages = (int) fmin(alleleCounts[0][0], fmin(alleleCounts[1][0], alleleCounts[2][0]));
+        else 
+            minNumLineages = (int) fmin(fmin(alleleCounts[0][0], alleleCounts[1][0]), fmin(alleleCounts[2][0], alleleCounts[3][0]));
+
         if (sampleSize == -1)
             sampleSize = minNumLineages;
         // Otherwise, if it was set and we do not have the appropriate number of lineages, we skip the block.
@@ -212,7 +228,7 @@ Block_t* get_next_block(
             continue;
 
         // Use alleleCounts for rarefaction calculations.
-        locus_dstar(block, alleleCounts, numAlleles, sampleSize);
+        locus_dstar(block, alleleCounts, numAlleles, sampleSize, threePops);
     }
     block -> endCoordinate = coord;
 
@@ -230,17 +246,27 @@ BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
 
     // Count the number of haplotyes in each population.
     //  The first row holds the global counts.
-    int** alleleCounts = (int**) calloc(3, sizeof(int*));
+    int** alleleCounts = (int**) calloc(4, sizeof(int*));
     alleleCounts[0] = (int*) calloc(2 * numSamples + 1, sizeof(int));
     alleleCounts[1] = (int*) calloc(2 * numSamples + 1, sizeof(int));
     alleleCounts[2] = (int*) calloc(2 * numSamples + 1, sizeof(int));
+    alleleCounts[3] = (int*) calloc(2 * numSamples + 1, sizeof(int));
+
+    // Decide if we have three or four pops.
+    bool threePops = true; 
+    for (int i = 0; i < numSamples; i++) {
+        if (samplesToLabel[i] == 4) {
+            threePops = false;
+            break;
+        }
+    }
 
     while (true) {
         // Get the end position of the block for the next record.
         int endOfBlock = ((int) ((vcfFile -> nextCoord - 1) / (double) blockSize) + 1) * blockSize;
         
         // Get the next block.
-        Block_t* temp = get_next_block(vcfFile, samplesToLabel, numSamples, sampleSize, blockSize, endOfBlock, alleleCounts);
+        Block_t* temp = get_next_block(vcfFile, samplesToLabel, numSamples, sampleSize, blockSize, endOfBlock, alleleCounts, threePops);
         if (temp == NULL)
             break;
 
@@ -260,7 +286,7 @@ BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
         globalList -> numLoci += temp -> numLoci;
     }
 
-    free(alleleCounts[0]); free(alleleCounts[1]); free(alleleCounts[2]);
+    free(alleleCounts[0]); free(alleleCounts[1]); free(alleleCounts[2]); free(alleleCounts[3]);
     free(alleleCounts);
 
     return globalList;

@@ -22,7 +22,7 @@ typedef struct {
     bool standard;
     char* inputFileName;
     char* samplesToPopFileName;
-    char* threePopList;
+    char* popList;
     char* cmd;
     char* outBaseName;
 } DSTARConfig_t;

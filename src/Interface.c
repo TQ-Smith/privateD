@@ -16,10 +16,10 @@ void print_help() {
     fprintf(stderr, "Written by T. Quinn Smith\n");
     fprintf(stderr, "Principal Investigator: Zachary A. Szpiech\n");
     fprintf(stderr, "The Pennsylvania State University\n\n");
-    fprintf(stderr, "Usage: dstar [options] <inFile.vcf.gz> <sampleToPop.tsv> <pop1>,<pop2>,<pop3>\n\n");
+    fprintf(stderr, "Usage: dstar [options] <inFile.vcf.gz> <sampleToPop.tsv> <pop1>,<pop2>,<pop3>[,<pop4>]\n\n");
     fprintf(stderr, "<inFile.vcf.gz>                    The input VCF file.\n");
     fprintf(stderr, "<sampleToPop.tsv>                  Tab seperate file associating each sample with a population.\n");
-    fprintf(stderr, "<pop1>,<pop2>,<pop3>               Names of the three populations to test.\n\n");
+    fprintf(stderr, "<pop1>,<pop2>,<pop3>[,<pop4>]      Names of the populations to test.\n\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "Prints to stdout by default. Progress printed to stderr.\n");
     fprintf(stderr, "\n");
@@ -103,7 +103,7 @@ DSTARConfig_t* init_dstar_config(int argc, char* argv[]) {
     config -> replicates = 1000;
     config -> inputFileName = NULL;
     config -> samplesToPopFileName = NULL;
-    config -> threePopList = NULL;
+    config -> popList = NULL;
     config -> standard = false;
     config -> cmd = NULL;
     config -> outBaseName = NULL;
@@ -131,7 +131,7 @@ DSTARConfig_t* init_dstar_config(int argc, char* argv[]) {
 
     config -> inputFileName = strdup(argv[options.ind]);
     config -> samplesToPopFileName = strdup(argv[options.ind + 1]);
-    config -> threePopList = strdup(argv[options.ind + 2]);
+    config -> popList = strdup(argv[options.ind + 2]);
 
     // Check configuration.
     if (check_configuration(config) != 0) {
@@ -150,7 +150,7 @@ DSTARConfig_t* init_dstar_config(int argc, char* argv[]) {
     ksprintf(cmd, "--replicates %d ", config -> replicates);
     ksprintf(cmd, "%s ", config -> inputFileName);
     ksprintf(cmd, "%s ", config -> samplesToPopFileName);
-    ksprintf(cmd, "%s", config -> threePopList);
+    ksprintf(cmd, "%s", config -> popList);
     config -> cmd = strdup(cmd -> s);
     free(cmd -> s); free(cmd);
 
@@ -164,8 +164,8 @@ void destroy_dstar_config(DSTARConfig_t* config) {
         free(config -> inputFileName);
     if (config -> samplesToPopFileName != NULL)
         free(config -> samplesToPopFileName);
-    if (config -> threePopList != NULL)
-        free(config -> threePopList);
+    if (config -> popList != NULL)
+        free(config -> popList);
     if (config -> cmd != NULL)
         free(config -> cmd);
     if (config -> outBaseName != NULL)
