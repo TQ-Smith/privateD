@@ -40,9 +40,10 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
     second = strdup(tok);
     tok = strtok(NULL, ",");
     third = strdup(tok);
-    tok = strtok(NULL, ",");
-    if (tok != NULL)
+    if (n == 3) {
+        tok = strtok(NULL, ",");
         fourth = strdup(tok);
+    }
 
     FILE* samplesToPopFile = fopen(samplesToPopFileName, "r");
 
