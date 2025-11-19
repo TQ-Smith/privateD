@@ -44,6 +44,7 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
         tok = strtok(NULL, ",");
         fourth = strdup(tok);
     }
+    free(tok);
 
     FILE* samplesToPopFile = fopen(samplesToPopFileName, "r");
 
@@ -89,8 +90,7 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
         kh_val(h, k) = popLabel;
 
     }
-    if (line)
-        free(line); 
+    if (line) free(line); 
     free(sampleName); free(popName);
 
     // Create association array.
@@ -105,7 +105,7 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
     }
 
     // Free used memory.
-    free(first); free(second); free(third);
+    free(first); free(second); free(third); if (fourth) free(fourth);
     fclose(samplesToPopFile);
     for (k = 0; k < kh_end(h); k++)
         if (kh_exist(h, k))

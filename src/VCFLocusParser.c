@@ -149,7 +149,7 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
     parser -> sampleNames = sampleNames;
     parser -> buffer = buffer;
     parser -> nextChrom = NULL;
-    parser -> nextLocus = (Locus*) malloc(numSamples * sizeof(Locus));
+    parser -> nextLocus = (Locus*) calloc(numSamples, sizeof(Locus));
 
     // Set fields from arguments.
     parser -> maf = maf;
