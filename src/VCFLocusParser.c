@@ -138,7 +138,6 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
         sampleNames[i] = strdup(tok);
         tok = strtok(NULL, "\t");
     }
-    free(header);
     
     // Allocate our structure and the memory for its fields.
     VCFLocusParser_t* parser = (VCFLocusParser_t*) calloc(1, sizeof(VCFLocusParser_t));
