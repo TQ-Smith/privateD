@@ -193,7 +193,7 @@ Block_t* get_next_block(
     while (isOnSameChrom && vcfFile -> nextCoord <= endOfBlock) {
         
         // Get the locus.
-        get_next_locus(vcfFile, &chrom, &coord, &numAlleles, &loci);
+        get_next_locus(vcfFile, &chrom, &coord, &numAlleles, loci);
         isOnSameChrom = !isEOF(vcfFile) && strcmp(chrom, vcfFile -> nextChrom) == 0;
         
         // Fill alleleCounts.
