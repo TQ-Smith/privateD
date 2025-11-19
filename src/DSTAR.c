@@ -261,7 +261,7 @@ BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
     }
 
     // Holds loci for each record.
-    Locus* loci = (Locus*) calloc(numSamples, sizeof(Locus));
+    Locus* loci = (Locus*) malloc(numSamples * sizeof(Locus));
 
     while (true) {
         // Get the end position of the block for the next record.
