@@ -52,7 +52,7 @@ bool seek(VCFLocusParser_t* parser) {
                     parser -> alleleCounts[(int) LEFT_ALLELE(l)]++;
                     parser -> alleleCounts[(int) RIGHT_ALLELE(l)]++;
                     // Set the sample's corresponding genotype.
-                    parser -> nextLocus[numTabs - 9] = l;
+                    parser -> nextLocus[numTabs - 8] = l;
                 }
                 prevIndex = i;
                 numTabs++;
