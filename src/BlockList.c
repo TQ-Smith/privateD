@@ -45,8 +45,10 @@ void append_block(BlockList_t* blockList, Block_t* block) {
 }
 
 void destroy_block(Block_t* block) {
-    free(block -> chrom);
-    free(block);
+    if (block -> chrom != NULL)
+        free(block -> chrom);
+    if (block != NULL)
+        free(block);
 }
 
 void destroy_block_list(BlockList_t* blockList) {
