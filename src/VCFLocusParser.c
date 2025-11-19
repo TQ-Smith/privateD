@@ -49,8 +49,8 @@ bool seek(VCFLocusParser_t* parser) {
                     // The ninth field and on holds the genotypes of the samples.
                     l = parse_locus(parser -> buffer -> s + prevIndex + 1, numAlleles);
                     // Increment each allele's count.
-                    parser -> alleleCounts[LEFT_ALLELE(l)]++;
-                    parser -> alleleCounts[RIGHT_ALLELE(l)]++;
+                    parser -> alleleCounts[(int) LEFT_ALLELE(l)]++;
+                    parser -> alleleCounts[(int) RIGHT_ALLELE(l)]++;
                     // Set the sample's corresponding genotype.
                     parser -> nextLocus[numTabs - 9] = l;
                 }

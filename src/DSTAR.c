@@ -186,7 +186,7 @@ Block_t* get_next_block(
 
     char* chrom = NULL;
     int coord;
-    Locus* loci = calloc(numSamples, sizeof(Locus));
+    Locus* loci = (Locus*) calloc(numSamples, sizeof(Locus));
     int numAlleles;
 
     bool isOnSameChrom = true;
