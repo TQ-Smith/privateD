@@ -176,7 +176,8 @@ Block_t* get_next_block(
     int blockSize,
     int endOfBlock,
     int** alleleCounts,
-    bool threePops
+    bool threePops,
+    Locus* loci
 ) {
 
     if (isEOF(vcfFile))
@@ -186,7 +187,6 @@ Block_t* get_next_block(
 
     char* chrom = NULL;
     int coord;
-    Locus* loci = (Locus*) calloc(numSamples, sizeof(Locus));
     int numAlleles;
 
     bool isOnSameChrom = true;
@@ -233,7 +233,6 @@ Block_t* get_next_block(
     block -> endCoordinate = coord;
 
     free(chrom);
-    free(loci);
 
     return block;
 
@@ -261,12 +260,15 @@ BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
         }
     }
 
+    // Holds loci for each record.
+    Locus* loci = (Locus*) calloc(numSamples, sizeof(Locus));
+
     while (true) {
         // Get the end position of the block for the next record.
         int endOfBlock = ((int) ((vcfFile -> nextCoord - 1) / (double) blockSize) + 1) * blockSize;
         
         // Get the next block.
-        Block_t* temp = get_next_block(vcfFile, samplesToLabel, numSamples, sampleSize, blockSize, endOfBlock, alleleCounts, threePops);
+        Block_t* temp = get_next_block(vcfFile, samplesToLabel, numSamples, sampleSize, blockSize, endOfBlock, alleleCounts, threePops, loci);
         if (temp == NULL)
             break;
 
@@ -288,6 +290,7 @@ BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
 
     free(alleleCounts[0]); free(alleleCounts[1]); free(alleleCounts[2]); free(alleleCounts[3]);
     free(alleleCounts);
+    free(loci);
 
     return globalList;
 
