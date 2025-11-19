@@ -259,7 +259,7 @@ BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
             break;
         }
     }
-
+    fprintf(stderr, "%d", numSamples);
     // Holds loci for each record.
     Locus* loci = (Locus*) malloc(numSamples * sizeof(Locus));
 
