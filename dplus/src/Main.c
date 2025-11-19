@@ -135,7 +135,7 @@ int main (int argc, char *argv[]) {
     }
     
     // Compute dplus in each block and genome-wide.
-    BlockList_t* blocks = dplus(vcfFile, samplesToLabel, vcfFile -> numSamples, config -> blockSize);
+    BlockList_t* blocks = dplus(vcfFile, samplesToLabel, config -> blockSize);
 
     // Execute bootstrap if user entered number of replicates.
     if (config -> replicates > 0)

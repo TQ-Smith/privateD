@@ -139,16 +139,10 @@ int main (int argc, char *argv[]) {
         destroy_vcf_locus_parser(vcfFile);
         return -1;
     }
-
-    // Count the number of samples in the three populations.
-    int numSamples = 0;
-    for (int i = 0; i < vcfFile -> numSamples; i++)
-        if (samplesToLabel[i] != -1) 
-            numSamples++;
     
     // fprintf(stderr, "\nBlocking Genome ...\n");
     // Compute privateD in each block and genome-wide.
-    BlockList_t* blocks = dstar(vcfFile, samplesToLabel, numSamples, config -> sampleSize, config -> blockSize);
+    BlockList_t* blocks = dstar(vcfFile, samplesToLabel, config -> sampleSize, config -> blockSize);
     // fprintf(stderr, "Finished Blocking Genome ...\n");
 
     // Execute bootstrap if user entered number of replicates.

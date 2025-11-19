@@ -105,8 +105,7 @@ void bootstrap(BlockList_t* blockList, int replicates, bool standard) {
 
 Block_t* get_next_block(
     VCFLocusParser_t* vcfFile, 
-    int* samplesToLabel, 
-    int numSamples, 
+    int* samplesToLabel,
     int blockSize, 
     int endOfBlock,
     int** alleleCounts
@@ -119,7 +118,7 @@ Block_t* get_next_block(
 
     char* chrom = NULL;
     int coord;
-    Locus* loci = calloc(numSamples, sizeof(Locus));
+    Locus* loci = calloc(vcfFile -> numSamples, sizeof(Locus));
     int numAlleles;
 
     bool isOnSameChrom = true;
@@ -135,7 +134,7 @@ Block_t* get_next_block(
             for (int j = 0; j < 3; j++)
                 alleleCounts[i][j] = 0;
 
-        for (int i = 0; i < numSamples; i++) {
+        for (int i = 0; i < vcfFile -> numSamples; i++) {
             if (samplesToLabel[i] != -1) {
                 if (LEFT_ALLELE(loci[i]) != numAlleles) {
                     alleleCounts[samplesToLabel[i] - 1][(int) (LEFT_ALLELE(loci[i])) + 1]++;
@@ -202,7 +201,7 @@ Block_t* get_next_block(
 
 }
 
-BlockList_t* dplus(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSamples, int blockSize) {
+BlockList_t* dplus(VCFLocusParser_t* vcfFile, int* samplesToLabel, int blockSize) {
     
     BlockList_t* globalList = init_block_list();
 
@@ -220,7 +219,7 @@ BlockList_t* dplus(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
         int endOfBlock = ((int) ((vcfFile -> nextCoord - 1) / (double) blockSize) + 1) * blockSize;
         
         // Get the next block.
-        Block_t* temp = get_next_block(vcfFile, samplesToLabel, numSamples, blockSize, endOfBlock, alleleCounts);
+        Block_t* temp = get_next_block(vcfFile, samplesToLabel, blockSize, endOfBlock, alleleCounts);
         if (temp == NULL)
             break;
 

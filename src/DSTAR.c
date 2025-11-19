@@ -171,7 +171,6 @@ void locus_dstar(Block_t* block, int** alleleCounts, int numAlleles, int sampleS
 Block_t* get_next_block(
     VCFLocusParser_t* vcfFile,
     int* samplesToLabel, 
-    int numSamples, 
     int sampleSize, 
     int blockSize,
     int endOfBlock,
@@ -201,7 +200,7 @@ Block_t* get_next_block(
             for (int j = 0; j <= numAlleles; j++)
                 alleleCounts[i][j] = 0;
 
-        for (int i = 0; i < numSamples; i++) {
+        for (int i = 0; i < vcfFile -> numSamples; i++) {
             if (samplesToLabel[i] != -1) {
                 if (((int) LEFT_ALLELE(loci[i])) != numAlleles) {
                     alleleCounts[samplesToLabel[i] - 1][((int) (LEFT_ALLELE(loci[i]))) + 1]++;
@@ -238,7 +237,7 @@ Block_t* get_next_block(
 
 }
 
-BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSamples, int sampleSize, int blockSize) {
+BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int sampleSize, int blockSize) {
     
     BlockList_t* globalList = init_block_list(sampleSize);
 
@@ -246,10 +245,10 @@ BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
     // Count the number of haplotyes in each population.
     //  The first row holds the global counts.
     int** alleleCounts = (int**) calloc(4, sizeof(int*));
-    alleleCounts[0] = (int*) calloc(2 * numSamples + 1, sizeof(int));
-    alleleCounts[1] = (int*) calloc(2 * numSamples + 1, sizeof(int));
-    alleleCounts[2] = (int*) calloc(2 * numSamples + 1, sizeof(int));
-    alleleCounts[3] = (int*) calloc(2 * numSamples + 1, sizeof(int));
+    alleleCounts[0] = (int*) calloc(2 * vcfFile -> numSamples + 1, sizeof(int));
+    alleleCounts[1] = (int*) calloc(2 * vcfFile -> numSamples + 1, sizeof(int));
+    alleleCounts[2] = (int*) calloc(2 * vcfFile -> numSamples + 1, sizeof(int));
+    alleleCounts[3] = (int*) calloc(2 * vcfFile -> numSamples + 1, sizeof(int));
 
     // Decide if we have three or four pops.
     bool threePops = true; 
@@ -268,7 +267,7 @@ BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
         int endOfBlock = ((int) ((vcfFile -> nextCoord - 1) / (double) blockSize) + 1) * blockSize;
         
         // Get the next block.
-        Block_t* temp = get_next_block(vcfFile, samplesToLabel, numSamples, sampleSize, blockSize, endOfBlock, alleleCounts, threePops, loci);
+        Block_t* temp = get_next_block(vcfFile, samplesToLabel, sampleSize, blockSize, endOfBlock, alleleCounts, threePops, loci);
         if (temp == NULL)
             break;
 
