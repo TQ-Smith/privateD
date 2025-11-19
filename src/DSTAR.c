@@ -253,15 +253,15 @@ BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
 
     // Decide if we have three or four pops.
     bool threePops = true; 
-    for (int i = 0; i < numSamples; i++) {
+    for (int i = 0; i < vcfFile -> numSamples; i++) {
         if (samplesToLabel[i] == 4) {
             threePops = false;
             break;
         }
     }
-    fprintf(stderr, "%d", numSamples);
+
     // Holds loci for each record.
-    Locus* loci = (Locus*) malloc(numSamples * sizeof(Locus));
+    Locus* loci = (Locus*) calloc(vcfFile -> numSamples, sizeof(Locus));
 
     while (true) {
         // Get the end position of the block for the next record.
