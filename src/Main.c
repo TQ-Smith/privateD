@@ -44,7 +44,6 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
         tok = strtok(NULL, ",");
         fourth = strdup(tok);
     }
-    free(tok);
 
     FILE* samplesToPopFile = fopen(samplesToPopFileName, "r");
 
