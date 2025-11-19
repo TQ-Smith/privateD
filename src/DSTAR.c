@@ -232,7 +232,7 @@ Block_t* get_next_block(
     }
     block -> endCoordinate = coord;
 
-    free(chrom);
+    if (chrom) free(chrom);
 
     return block;
 
