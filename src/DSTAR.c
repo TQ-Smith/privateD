@@ -290,7 +290,6 @@ BlockList_t* dstar(VCFLocusParser_t* vcfFile, int* samplesToLabel, int numSample
 
     free(alleleCounts[0]); free(alleleCounts[1]); free(alleleCounts[2]); free(alleleCounts[3]);
     free(alleleCounts);
-    free(loci);
 
     return globalList;
 
