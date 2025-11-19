@@ -89,7 +89,7 @@ int* labelSamples(char** sampleNames, int numSamples, char* samplesToPopFileName
         kh_val(h, k) = popLabel;
 
     }
-    if (line) free(line); 
+    free(line); 
     free(sampleName); free(popName);
 
     // Create association array.
