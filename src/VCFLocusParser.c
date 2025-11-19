@@ -138,6 +138,7 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
         sampleNames[i] = strdup(tok);
         tok = strtok(NULL, "\t");
     }
+    free(header);
     
     // Allocate our structure and the memory for its fields.
     VCFLocusParser_t* parser = (VCFLocusParser_t*) calloc(1, sizeof(VCFLocusParser_t));
@@ -165,7 +166,7 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
     return parser;
 }
 
-bool get_next_locus(VCFLocusParser_t* parser, char** chrom, int* coord, int* numOfAlleles, Locus** locus) {
+bool get_next_locus(VCFLocusParser_t* parser, char** chrom, int* coord, int* numOfAlleles, Locus* locus) {
     
     // Move primed read into arguments.
     if (*chrom != NULL)
@@ -173,10 +174,8 @@ bool get_next_locus(VCFLocusParser_t* parser, char** chrom, int* coord, int* num
     *chrom = strdup(parser -> nextChrom);
     *coord = parser -> nextCoord;
     *numOfAlleles = parser -> nextNumAlleles;
-    // We just swap array pointers, which is better than copying each element individually.
-    Locus* temp = *locus;
-    *locus = parser -> nextLocus;
-    parser -> nextLocus = temp;
+    for (int i = 0; i < parser -> numSamples; i++)
+        locus[i] = parser -> nextLocus[i];
     
     // Prime the next read.
     return seek(parser);
