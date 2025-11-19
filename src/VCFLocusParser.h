@@ -71,9 +71,9 @@ VCFLocusParser_t* init_vcf_locus_parser(char* fileName, double maf, double afMis
 //  char** chrom -> Sets the chromosome of the read-in record.
 //  unsigned int* coord -> Sets the position of the read-in record.
 //  int* numOfAlleles -> Sets the number of alleles at the read-in record.
-//  Locus** genos -> Sets the array of the samples' genotypes at the read-in record.
+//  Locus* genos -> The array of the samples' genotypes at the read-in record.
 // Returns: bool, True is another record exists and False otherwise.
-bool get_next_locus(VCFLocusParser_t* parser, char** chrom, int* coord, int* numOfAlleles, Locus** genos);
+bool get_next_locus(VCFLocusParser_t* parser, char** chrom, int* coord, int* numOfAlleles, Locus* genos);
 
 // Checks if stream has reached end of the VCF file.
 bool isEOF(VCFLocusParser_t* parser);
